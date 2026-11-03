@@ -1320,6 +1320,113 @@ penalties:
   touchdown_value: 100
   first_down_value: 6
   short_value: 3
+# Fantasy football ("Other game modes"): a fantasy league on top of one simulated NFL season. The
+# rules a new league starts with, the scoring, and how the CPU managers draft, set their lineups and
+# bid for free agents. Every value is read by the game: a missing one or an unknown name is an error.
+# Not part of the game's fingerprint (see config/simulation.yaml).
+
+new_league:
+  # A new league starts as ESPN's standard league (the setup screen changes these)
+  teams: 10
+  reception_points: 1.0              # points per reception: 0 standard, 0.5 half PPR, 1 full PPR
+  slots: {QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, DST: 1, K: 1}   # the lineup (FLEX: a running back, receiver or tight end)
+  bench: 7
+  budget: 100                        # free agent budget (FAAB) of every team, $
+
+setup:
+  # What the setup screen allows
+  teams: [4, 16]                     # (even numbers only: every team plays every week)
+  slot_max: {QB: 3, RB: 4, WR: 5, TE: 3, FLEX: 3, DST: 1, K: 1}
+  bench: [3, 12]
+  budget: [0, 1000]
+  budget_step: 25                    # the budget's - and + buttons
+  reception_choices: [0, 0.5, 1]     # standard, half PPR, full PPR
+
+season:
+  regular_weeks: 14                  # the fantasy regular season; the playoffs follow (one week a round), within the NFL's regular season
+  # [league size up to, teams in the playoffs]: the best seeds get a bye when it is not a power of two
+  playoff_teams: [[4, 2], [8, 4], [14, 6], [16, 8]]
+  waiver_phases: 3                   # bidding rounds for free agents each week (each is resolved before the next opens)
+  phase_names: [Tuesday, Thursday, Saturday]
+  # the CPU managers' team names (the league uses the first ones, shuffled)
+  team_names: [Blitz Brigade, Hail Mary Heroes, Red Zone Rebels, Fourth and Long, Gridiron Gang, Pigskin Pirates, End Zone Elite,
+               Sack Masters, Two Minute Drill, Play Action Posse, Waiver Wire Warriors, Pick Six Society, Bootleg Bandits,
+               Shotgun Snappers, Draft Day Dynasty, Monday Morning QBs]
+  your_team: Your Team
+
+scoring:
+  # Standard scoring (ESPN): offense, kickers, team defense and special teams (D/ST)
+  pass_yards_per_point: 25
+  pass_td: 4
+  interception: -2
+  rush_yards_per_point: 10
+  rec_yards_per_point: 10
+  rush_td: 6
+  rec_td: 6
+  return_td: 6                       # a kick or punt returned for a touchdown (the returner; and his team's D/ST)
+  two_point: 2
+  fumble_lost: -2
+  fg_0_39: 3
+  fg_40_49: 4
+  fg_50: 5
+  fg_missed: -1
+  xp: 1
+  xp_missed: -1
+  dst_sack: 1
+  dst_interception: 2
+  dst_fumble_recovery: 2
+  dst_td: 6                          # an interception or fumble returned for a touchdown
+  dst_safety: 2
+  dst_blocked_kick: 2
+  dst_points_allowed: [[0, 5], [6, 4], [13, 3], [17, 1], [21, 0], [27, -1], [34, -3], [45, -5], [999, -5]]   # [up to this many, points]
+  dst_yards_allowed: [[99, 5], [199, 3], [299, 2], [349, 0], [399, -1], [449, -3], [499, -5], [549, -6], [9999, -7]]
+
+projection:
+  # Before the draft one NFL season is simulated (then everything goes back to the start): every
+  # player's fantasy points per game in it are his projection
+  min_games: 6                       # points per game: divided by at least this many games (a few big games are not a season)
+  prior_games: 4                     # a week's prediction: the projection counts like this many games of the season so far
+
+draft:
+  # A CPU manager's value of a player: (points per game + deviation_weight x his points per game less
+  # the average of the best baseline_pool at his position) x the team's need at the position x noise
+  baseline_pool: 24
+  deviation_weight: 2.0
+  # [players at the position beyond the starters it needs, factor] (a running back, receiver or tight
+  # end counts flex_share of a flex spot as a starter he could fill)
+  need_by_extra: [[-1, 1.15], [0, 0.9], [1, 0.7], [2, 0.5], [3, 0.35], [4, 0.25]]
+  flex_share: {RB: 0.5, WR: 0.5, TE: 0}
+  # x this once every spot he could fill is covered (a backup quarterback plays in his starter's bye week only)
+  backup_factor: {QB: 0.45, RB: 1, WR: 1, TE: 0.55, K: 0.1, DST: 0.2}
+  max_at_position: {QB: 2, RB: 7, WR: 7, TE: 2, K: 1, DST: 1}  # (a CPU team takes no more)
+  late_rounds: {K: 1, DST: 2}        # kickers only in the last round, defenses in the last two
+  noise: 0.04                        # each CPU manager sees every player with this much noise (standard deviation, a share of his value)
+  cpu_pick_seconds: 0.35             # the draft screen: a CPU pick every this many seconds
+  user_pick_seconds: 90              # the person's pick: then the best player on the board is taken
+
+lineup:
+  noise: 0.03                        # a CPU manager's lineup: his predictions with this much noise (close calls go either way)
+
+waivers:
+  # A CPU manager's claim: a free agent who makes his team better by at least min_gain points a week
+  # (his lineup, and bench_weight of his best bench players: byes and injuries), for the player he
+  # would drop. He bids budget_per_point of his budget per point gained (at most max_share at once,
+  # more as the season runs out: x (weeks left / regular weeks) ^ -late_season)
+  candidates: 30                     # he looks at the best this many free agents
+  bench_weight: 0.25
+  bench_depth: 4                     # ... of this many bench players
+  min_gain: 0.6
+  budget_per_point: 0.05
+  max_share: 0.45
+  late_season: 0.3
+  claims_per_phase: 1
+  activity: 0.75                     # the chance a CPU manager looks at the free agents in a phase
+  noise: 0.05
+
+results:
+  top_players: 10                    # the best players of the season
+  top_by_position: 5
+  overperformers: 10                 # the players who did best against their draft spot
 # The game flow around the plays: fatigue, momentum, depth-chart rotation, which receiver lines up
 # where, the defense's memory of repeated calls, the time between plays and pre-snap fouls. The
 # coaches' decisions are in coaching.yaml, the rules in ../rules.yaml. Every value is read by the
