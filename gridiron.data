@@ -1105,6 +1105,2400 @@ defense:
     third_long: {blitz: 0.42, man: 0.5}
     goal_line: {blitz: 0.48, man: 0.65}
     two_minute: {blitz: 0.19, man: 0.35}
+# The CPU coaches: the rules of thumb every coach shares. What makes coaches different - pass
+# tendency, aggressiveness, 4th-down zone, favorite plays, blitz and man tendencies by situation -
+# is in data/coaches/*.yaml; this file says how those tendencies become calls. Every value is read
+# by the game: a missing one or an unknown name is an error. Online opponents need the same file.
+
+offense:
+  # the offense's tempo: a change of pace (no huddle with the same players) with no_huddle_base + no_huddle_aggressiveness x aggressiveness
+  no_huddle_base: 0.02
+  no_huddle_aggressiveness: 0.04
+  last_seconds: 10                   # this little time left (and a kick helps): field goal on any down
+  spike_minute: 60                   # no timeouts left in the two-minute drill: spike on 1st or 2nd down within this many seconds
+  spike_kick: 6                      # ... or to set up a kick when less than this would be left after a hurried snap
+  # 4th down in the coach's go-for-it zone: he goes for it with go_base + go_aggressiveness x aggressiveness
+  go_base: 0.4
+  go_aggressiveness: 0.6
+  # run or pass: the coach's pass share for the situation (default: default_pass_base + default_pass_tendency x pass tendency,
+  # + default_second_long on 2nd and 7+ (default_second_medium on 2nd and 3-6), + default_third_long on 3rd and 4+, - default_short on short yardage)
+  default_pass_base: 0.27
+  default_pass_tendency: 0.4
+  default_second_long: 0.17
+  default_second_medium: 0.05
+  default_third_long: 0.25
+  default_short: 0.15
+  matchup_edge: 0.8                  # + this x (pass edge - run edge) / 100: lean on the unit with the bigger edge
+  no_time_pass: 0.95                 # no timeouts and less than no_time_seconds in the two-minute drill: pass at least this often
+  no_time_seconds: 40
+  pass_min: 0.05
+  pass_max: 0.97
+  # the concept: the depth he wants is the sticks + past_sticks + deep_shot_depth x deep shot tendency (at most max_depth; down by more than a
+  # touchdown late: catch_up_depth); a play's weight falls with e^(-|its depth - wanted| / depth_falloff)
+  deep_shot_depth: 7
+  max_depth: 25
+  catch_up_depth: 20
+  two_point_depth: 3
+  depth_falloff: 6
+  play_action_base: 0.5              # play action: x (this + the coach's play-action tendency)
+  trick_base: 0.06                   # gadget plays: x (trick_base + trick_aggressiveness x aggressiveness)
+  trick_aggressiveness: 0.1
+  qb_run_min: 0.04                   # designed QB runs: x clamp((mobility - 0.5) x 2 + qb_run_base, qb_run_min, 1)
+  qb_run_base: 0.25
+  variety_window: 8                  # repeats in the last calls (this many) cost variety x variety_cost each (at least variety_min is left)
+  variety_cost: 0.35
+  variety_family_cost: 0.15          # ... and each call of a similar play (same family) this much
+  variety_min: 0.1
+  noise_min: 0.7                     # every weight x a random factor between these two
+  noise_max: 1.3
+  # the yards to go behind the default pass share: 2nd and second_long_to_go+ (second_medium_to_go+), 3rd and third_long_to_go+, short yardage short_to_go or less
+  second_long_to_go: 7
+  second_medium_to_go: 3
+  third_long_to_go: 4
+  short_to_go: 2
+  spike_min_left: 1                  # a spike needs at least this many seconds left after lining up
+  spike_max_down: 2                  # spikes to save time (not to set up a kick) only up to this down
+  catch_up_margin: 7                 # "down by more than a touchdown": catch_up_depth late when trailing by more than this
+  past_sticks: 1                     # the pass depth he wants starts this far past the sticks
+
+defense:
+  # the defense: man calls x (man_base + man_weight x man tendency), zone calls x (zone_base - zone_weight x man tendency) ...
+  man_base: 0.2
+  man_weight: 1.8
+  zone_base: 1.2
+  zone_weight: 0.6
+  blitz_base: 0.15                   # ... blitzes x (blitz_base + blitz_weight x blitz tendency), others x (no_blitz_base - no_blitz_weight x blitz tendency)
+  blitz_weight: 2
+  no_blitz_base: 1.15
+  no_blitz_weight: 0.5
+  noise_min: 0.7
+  noise_max: 1.3
+  unknown_receivers: 3               # the offense's receivers when its call is not known yet
+  # matching personnel: each call x a weight by the offense's receivers (one or none, two, three, four or more) and the
+  # call's defensive backs [four or fewer, five (nickel), six or more (dime)]
+  personnel_1_wr: [1.8, 0.3, 0.3]
+  personnel_2_wr: [1.5, 0.5, 0.5]
+  personnel_3_wr: [0.6, 2, 2]
+  personnel_4_wr: [0.3, 2, 1.8]
+
+conversions:
+  # two-point tries: an "aggressive" coach goes for two with aggressiveness x this
+  aggressive_two: 0.2
+  # the two-point chart: with less than chart_fraction of the 4th quarter left the coach goes by the chart
+  chart_fraction: 0.5
+  chart: [-2, -5, -9, -10, -13, -16, 1, 5, 12]  # the score difference after the touchdown (simplified chart)
+
+endgame:
+  # the endgame: late = the 4th quarter (or later) with less than late_fraction of the quarter left;
+  # a field goal "helps" when it ties or wins it: trailing by at most field_goal_margin
+  late_fraction: 0.35
+  field_goal_margin: 3
+  # the hurry-up: the last two_minute seconds of the first half (or tied late) from hurry_min_ball_on on; trailing
+  # in the 4th: seconds_per_score x the scores needed (points_per_score each) + hurry_extra
+  two_minute: 120
+  hurry_min_ball_on: 20
+  points_per_score: 8
+  seconds_per_score: 150
+  hurry_extra: 30
+  # protect the lead (run the clock): the last lead_seconds of the 4th quarter, big_lead_seconds with a lead of more than big_lead
+  big_lead: 16
+  big_lead_seconds: 600
+  lead_seconds: 300
+  # kneel it out: a kneel takes kneel_seconds, between kneels the play clock runs kneel_gap seconds; never inside
+  # the own kneel_min_ball_on (a safety); before the half only on the own half (inside kneel_half_ball_on)
+  kneel_seconds: 1
+  kneel_gap: 38.5
+  kneel_min_ball_on: 3
+  kneel_half_ball_on: 50
+  # the Hail Mary: at most hail_mary_seconds left, from hail_mary_min_ball_on to hail_mary_max_ball_on
+  hail_mary_seconds: 8
+  hail_mary_min_ball_on: 35
+  hail_mary_max_ball_on: 75
+
+situations:
+  # the situations of the coach files (third_short, red_zone ...) and of the plays' multipliers (data/plays: short_yardage,
+  # long_yardage, goal_line): short yardage = short_yardage yards to go or less, long yardage = long_yardage or more on 2nd
+  # to 4th down, the goal line from goal_line on (and two-point tries), the red zone from red_zone on; 1st and 10 =
+  # first_and_ten or more to go; 2nd and short = second_short or less, medium = medium or less (3rd and 4th: short = short_yardage)
+  short_yardage: 2
+  long_yardage: 10
+  goal_line: 95
+  red_zone: 80
+  first_and_ten: 10
+  second_short: 3
+  medium: 6
+
+kicking:
+  # the field goal range the coach trusts his kicker with: range_base + kick power / 99 x range_power (at most his
+  # own limit, data/coaches); no kicker on the depth chart: kick power no_kicker_power
+  range_base: 38
+  range_power: 22
+  no_kicker_power: 60
+
+suggest:
+  # the call sheet's suggestions for a human defense: the offense's likely plays (trick plays x trick_weight) ...
+  trick_weight: 0.1
+  # ... a defensive front read from its alignment: in the box = off the ball at most box_depth yards and at most box_width
+  # to either side (aligned over a slot or the back: at most box_over_depth deep); run_box or more in the box (or
+  # mixed_box with one deep safety) is a run front, pass_box or fewer (or mixed_box with two deep and at most mixed_rushers
+  # rushers) a pass front
+  box_depth: 7
+  box_width: 7
+  box_over_depth: 6
+  run_box: 8
+  mixed_box: 7
+  pass_box: 6
+  mixed_rushers: 4
+  # ... with data/matchups.yaml: what a call stops best (goal-line plays, goal_line multiplier above goal_line_play, do
+  # not count): its edge against runs and passes over the average call (at least edge_floor yards), + front_lean
+  # for what its front is built for; a lean beyond focus_lean decides
+  goal_line_play: 2
+  edge_floor: 0.5
+  front_lean: 0.2
+  focus_lean: 0.15
+  # ... a play is a success with success_first of the distance on 1st down, success_second on 2nd, all of it later
+  success_first: 0.4
+  success_second: 0.6
+  # ... with numbers for at least known_min of the likely plays: fit = 1 - success chance - avg_weight x average gain;
+  # without: what the front is built for (1 for its focus, fit_balanced for a balanced front, fit_wrong for the other),
+  # blitzes x blitz_long against a pass with blitz_long_to_go or more to go, else x blitz_short
+  known_min: 0.5
+  avg_weight: 0.01
+  fit_balanced: 0.75
+  fit_wrong: 0.45
+  blitz_long_to_go: 8
+  blitz_long: 0.7
+  blitz_short: 1.1
+  # ... football sense on top: defensive backs (want_dbs, want_dbs_three_wr against three receivers, want_dbs_four_wr
+  # against four or more): one off x dbs_off_by_one, more x dbs_off_more; short yardage x short_yardage multiplier ^
+  # short_yardage_power, long yardage (2nd and long_second_to_go, later long_later_to_go) x long_yardage ^ long_yardage_power,
+  # the last play x last_play ^ last_play_power
+  want_dbs: 4
+  want_dbs_three_wr: 5
+  want_dbs_four_wr: 6
+  dbs_off_by_one: 0.85
+  dbs_off_more: 0.6
+  short_yardage_power: 0.35
+  long_second_to_go: 10
+  long_later_to_go: 7
+  long_yardage_power: 0.35
+  last_play_power: 0.25
+  min_score: 0.001                   # every allowed call keeps at least this score
+  same_kind: 0.05                    # a call of a kind (man / zone, pressure) already suggested scores this much less
+
+timeouts:
+  # timeouts by the offense (with the clock running): in field goal range when a kick helps, with less than offense_kick
+  # seconds left after a hurried snap; in the hurry-up when the clock would run out (less than offense_last), with at
+  # most offense_late_down_seconds left on 3rd down or later (offense_late_down), with at most offense_save left
+  offense_kick: 6
+  offense_last: 3
+  offense_late_down_seconds: 75
+  offense_late_down: 3
+  offense_save: 50
+  # timeouts by the defense: trailing in the 4th by at most defense_trailing_max with at most defense_per_down x downs
+  # left + defense_extra seconds; leading or tied with at most answer_seconds left when the offense can take the lead
+  # with a score from where it is (a field goal from answer_fg_distance yards or less, a touchdown from answer_near_goal
+  # on, trailing by at most answer_td_margin); late in a half (at most get_back_seconds, more than get_back_min) on 4th
+  # down or a punt to get the ball back (before the half also on 3rd and punt_to_go+ on the offense's own half,
+  # punt_max_ball_on)
+  defense_trailing_max: 16
+  defense_per_down: 42
+  defense_extra: 45
+  answer_seconds: 150
+  answer_fg_distance: 52
+  answer_near_goal: 80
+  answer_td_margin: 8
+  get_back_seconds: 120
+  get_back_min: 8
+  punt_to_go: 4
+  punt_max_ball_on: 50
+
+penalties:
+  # accept or decline a flag against the offense: the defense's coach values the play as its gain + first_down_value
+  # if it reached the line to gain - short_value if it did not (a touchdown: touchdown_value) and declines the
+  # penalty when the play is worth no more to the offense than the penalty's loss of yards
+  touchdown_value: 100
+  first_down_value: 6
+  short_value: 3
+# The game flow around the plays: fatigue, momentum, depth-chart rotation, which receiver lines up
+# where, the defense's memory of repeated calls, the time between plays and pre-snap fouls. The
+# coaches' decisions are in coaching.yaml, the rules in ../rules.yaml. Every value is read by the
+# game: a missing one or an unknown name is an error. Online opponents need the same file.
+
+clutch:
+  # late and close ("clutch": the players' composure counts): the 4th quarter (or later) with less than
+  # late_fraction of the quarter left and the teams at most max_margin points apart (tries in the 4th always count)
+  late_fraction: 0.35
+  max_margin: 8
+
+receivers:
+  # who lines up at the first read: two receivers of a group (X, slot, Z ...) share it half and half when they are
+  # trusted alike; the better one gets it more often, up to first_max of the snaps when he is swap_gap steps of trust better
+  swap_gap: 0.45
+  first_max: 0.75
+  # shot plays: how often the most trusted receiver runs the big-play route instead of the man whose spot it is:
+  # shot_base + shot_trust x (steps of trust between them), at most shot_max
+  shot_base: 0.35
+  shot_trust: 0.5
+  shot_max: 0.75
+
+familiarity:
+  # The defense remembers the offense's last `window` calls (its own offensive snaps only: the memory goes on
+  # across the possessions). Three things make it read the next play faster (they add up, at most 1 = fully read):
+  # the same play again: base after one sighting, + per_repeat for each further one
+  window: 20
+  base: 0.1
+  per_repeat: 0.3
+  # a similar play (same `family` in its play file, e.g. another slant concept): similar_base after one,
+  # + similar_per_repeat for each further one, at most similar_max
+  similar_base: 0.05
+  similar_per_repeat: 0.1
+  similar_max: 0.3
+  # one-dimensional: of the last tendency_window calls, tendency_from or more of the same kind (run or pass) as
+  # this one: tendency_per_call for the first, and that much more for each further one, at most tendency_max
+  # (it starts later than the others and keeps growing as long as the offense keeps calling the same kind)
+  tendency_window: 16
+  tendency_from: 12
+  tendency_per_call: 0.04
+  tendency_max: 0.2
+  memory: 30                         # calls kept per team (at least window and tendency_window; the coaches' variety looks back at them too)
+  note_min: 0.15                     # the HUD and the log mention it from this much on
+
+spike:
+  # a spike: the quarterback lines up under center (yards behind the ball) and drops this far
+  qb_depth: -1.3
+  drop: 1
+
+momentum:
+  # momentum fades with game time: x e^(-seconds / fade) (to a third in ten minutes); a player's goes up to
+  # player_cap (the on-field simulation gives the full bonus at its own limit), a team's to team_cap (the full bonus)
+  fade: 600
+  player_cap: 7
+  team_cap: 4
+  swing_loss: 0.5                    # one team's good moment costs the other this share of it
+  # the team's swings on kicks: a field goal, a return touchdown, a blocked kick (for the blockers), a muff (for the kicking team)
+  field_goal: 0.4
+  return_touchdown: 1.2
+  blocked_kick: 0.8
+  muffed_kick: 0.8
+  # players: a completion gives the passer completion + yards / pass_yards, the catcher completion + yards / catch_yards;
+  # an incompletion (not thrown away) costs the passer incompletion
+  completion: 0.4
+  pass_yards: 25
+  catch_yards: 15
+  incompletion: -0.25
+  run_par: 2                         # a run: (yards - run_par) / run_scale (a stuff costs, a big run counts)
+  run_scale: 8
+  missed_tackle: 0.3                 # a broken tackle, for the ball carrier
+  drop: -1
+  breakup: 1
+  tackle_for_loss: 1                 # a tackle behind the line ...
+  short_stop_yards: 2
+  short_stop: 0.3                    # ... at most short_stop_yards past it ...
+  tackle: 0.1                        # ... any other tackle
+  # the swings of the game: a sack, an interception, a fumble lost (the player, the other player, the unit, the team)
+  sacker: 1.5
+  sacked: -0.5
+  sack_swing: 0.3
+  interception_thrown: -2.5
+  interceptor: 2
+  takeaway_unit: 0.3
+  takeaway_swing: 1.2
+  fumbler: -2.5
+  forcer: 1.5
+  recoverer: 1
+  # an offensive touchdown: the scorer, the passer, the offense, the team; a defensive score (touchdown or safety)
+  scorer: 1.5
+  scoring_passer: 1
+  touchdown_unit: 0.3
+  touchdown_swing: 1
+  defense_score_unit: 0.4
+  defense_score_swing: 1.4
+  big_play_yards: 20                 # a play of this many yards (no turnover) ...
+  big_play_swing: 0.4
+  stop_unit: 0.15                    # a stop on third or fourth down: the defense ...
+  stop_swing: 0.3                    # ... and the team
+
+fatigue:
+  # fatigue: a player on the field loses (per_play + per_yard x yards run + per_engaged x seconds blocking or
+  # being blocked) x (stamina_base - stamina / 99 x stamina_weight) and gets on_field back; on the sideline
+  # off_field; energy never drops below min_energy (100 = fresh)
+  per_play: 2
+  per_yard: 0.18
+  per_engaged: 1.5
+  stamina_base: 1.3
+  stamina_weight: 0.7
+  on_field: 4
+  off_field: 8
+  min_energy: 10
+
+rotation:
+  # the depth-chart rotation (per group below): the share of the snaps a backup takes is share + similar x (how
+  # close he is: 1 within 0, 0 at similar_range points of depth-chart skill) + tired x (the starter's tiredness:
+  # 0 above tired_from energy, 1 at tired_from - tired_range) x (tired_early + tired_late x how far the game is),
+  # at most max_share
+  similar_range: 10
+  tired_from: 90
+  tired_range: 40
+  tired_early: 0.4
+  tired_late: 0.6
+  max_share: 0.5
+  qb_rest_lead: 30                   # the starting quarterback sits in the 4th quarter with a lead this big
+  # the groups that rotate (quarterbacks, linemen and specialists only leave hurt), offense and defense, and per
+  # group [share, similar, tired, series]: series = the snaps the starter sits out when the backup comes in
+  offense_groups: [RB, WR, TE]
+  defense_groups: [DE, DT, LB, CB, S]
+  RB: [0.36, 0.2, 0.14, 3]
+  WR: [0.02, 0.05, 0.10, 2]
+  TE: [0.03, 0.06, 0.10, 2]
+  DE: [0.06, 0.10, 0.14, 3]
+  DT: [0.08, 0.11, 0.14, 3]
+  LB: [0.02, 0.04, 0.08, 2]
+  CB: [0.01, 0.03, 0.07, 2]
+  S: [0.01, 0.03, 0.07, 2]
+
+tempo:
+  # the time between plays (seconds): officials spot the ball, the offense gets back to it (players more than
+  # regroup_distance yards away jog back at regroup_speed), then huddles
+  ball_spot: 5
+  regroup_distance: 12
+  regroup_speed: 5
+  huddle: 13
+  out_of_bounds_restart: 7           # out of bounds early in a half: the clock starts again once the ball is spotted
+  timeout_call: 2                    # a timeout is called this long after the whistle ...
+  timeout_min_left: 1                # ... and never takes the clock below this
+  # when the snap comes (after the offense is back at the ball): a spike spike_min..spike_max seconds later (at the
+  # earliest spike_earliest), no huddle no_huddle_min..no_huddle_max (at the earliest no_huddle_earliest), a quick
+  # huddle in the two-minute drill huddle + hurry_min..hurry_max; running the clock down: run_clock_min..run_clock_max
+  # seconds before the play clock runs out; a normal huddle: huddle_min..huddle_max seconds left (huddle_short_max on
+  # a play clock of long_play_clock or less); never later than snap_margin before the play clock runs out
+  spike_min: 3
+  spike_max: 6
+  spike_earliest: 1
+  no_huddle_min: 7
+  no_huddle_max: 12
+  no_huddle_earliest: 3
+  hurry_min: 1
+  hurry_max: 4
+  run_clock_min: 0.5
+  run_clock_max: 2
+  huddle_min: 2
+  huddle_max: 8
+  huddle_short_max: 7
+  long_play_clock: 30
+  snap_margin: 0.5
+
+penalties:
+  # pre-snap fouls: the chance per snap of each player who can jump (x his flag rate, ratings.yaml): a false start
+  # by an offensive player, offside by a defensive lineman or linebacker
+  false_start: 0.0014
+  offside: 0.0009
+
+kicking:
+  # a person may try a field goal this many yards beyond the coach's range
+  beyond_range: 5
+
+plays:
+  # A shot play (marked when the plays are loaded): a pass play whose ai depth is at least shot_depth; its big-play
+  # route is the first read whose route gets that far downfield
+  shot_depth: 18                     # yards
+# Career mode: how the CPU teams value players and picks (trades, free agency, contracts), their
+# draft and roster moves, player development and injuries. Every value is read by the game: a
+# missing one or an unknown name is an error. Money is in thousands of dollars.
+
+trades:
+  # Values are draft-chart points (the Jimmy Johnson chart): [pick, points], straight lines in between
+  draft_chart: [[1, 3000], [2, 2600], [3, 2200], [4, 1800], [5, 1700], [6, 1600], [7, 1500], [8, 1400], [9, 1350], [10, 1300],
+                [16, 1000], [20, 850], [32, 590], [33, 580], [48, 420], [64, 270], [65, 265], [96, 116], [100, 100], [128, 44],
+                [160, 27.4], [192, 14.6], [224, 4], [260, 1]]
+  # an elite player's worth at each position (in his prime, on a fair contract)
+  elite_value: {QB: 2200, DE: 1500, WR: 1300, CB: 1200, DT: 1100, OL: 1000, S: 650, TE: 550, LB: 500, RB: 450, K: 40, P: 30, FB: 30, LS: 5}
+  # [up to this age, factor]: how a player's age changes his worth
+  age_factor: [[23, 1.25], [25, 1.1], [27, 1.0], [28, 0.9], [29, 0.8], [30, 0.65], [31, 0.5], [32, 0.38], [33, 0.25]]
+  cap_leeway: 0.03                   # a CPU team may go this share of the cap over it in a trade (it releases a player right after)
+  future_pick_discount: 0.85         # a pick is worth this much less per year it is away
+  contender_from: 0.6                # a team winning this share of its games is a contender ...
+  rebuilding_below: 0.35             # ... one winning this share or less is rebuilding
+  contender_pick_value: 0.85         # a contender values picks this much (it wants players now) ...
+  rebuilding_pick_value: 1.2         # ... a rebuilding team this much
+  elite_value_other: 50              # a player of a group not in elite_value
+  star_curve: 3                      # a player's worth: elite value x standing (0..1 against the league at his position) to this power x age factor
+  late_peak: 3                       # quarterbacks, kickers, punters and long snappers age like players this many years younger
+  age_factor_older: 0.1              # ... older than the last age in age_factor
+  # his contract: the surplus (what he is worth less his cap hit, $M a season) x surplus_value x the seasons left
+  # (at most surplus_years), between surplus_min x his value and surplus_max x the elite value
+  surplus_value: 5
+  surplus_years: 3
+  surplus_min: -0.5
+  surplus_max: 0.35
+  rental: 0.7                        # in his last contract year: x this (x rental_contender for a contender buying in season)
+  rental_contender: 0.85
+  injured_weeks: 10                  # out this many weeks or more (or for the season): x injured_value
+  injured_value: 0.5
+  # a team acquiring him: x (need_base + need_weight x need), need at most need_max (1 = an average starter's spot)
+  need_base: 0.35
+  need_weight: 0.65
+  need_max: 1.5
+  contender_buys: 1.15               # a contender acquiring: x this
+  rebuild_age: 28                    # a rebuilding team: players this old or older count x rebuild_buys_vets (acquiring) / rebuild_sells_vets (giving up)
+  rebuild_buys_vets: 0.6
+  rebuild_sells_vets: 0.7
+  # a team giving him up: x (keep_need_base + keep_need_weight x need) x premium, x contender_keeps for a contender
+  keep_need_base: 0.8
+  keep_need_weight: 0.2
+  contender_keeps: 1.1
+  star_standing: 0.8                 # his star (this standing or better, not older than star_age / star_age_late): premium star_premium
+  star_age: 29
+  star_age_late: 33
+  star_premium: 1.5
+  franchise_qb_standing: 0.45        # its starting quarterback (this standing or better): premium franchise_qb_premium
+  franchise_qb_premium: 1.4
+  package_discount: 0.1              # several pieces count less than one big one: the k-th biggest x (1 - k x this), at least package_min
+  package_min: 0.5
+  # a pick's projected number: the farther away (projection_regress_year a year, projection_regress_season more early in the
+  # season) the closer to the middle of the round, at most projection_regress_max of the way
+  projection_regress_year: 0.3
+  projection_regress_season: 0.5
+  projection_regress_max: 0.9
+  # the person's offer: a CPU team accepts when it gets accept_margin x what it gives (its own view of the values),
+  # counters from counter_from x (asking for up to counter_rounds more pieces, each worth at least counter_min_piece),
+  # says no from listen_from x, and below that walks away for walk_away_weeks weeks
+  accept_margin: 1.08
+  counter_from: 0.6
+  counter_rounds: 3
+  counter_min_piece: 15
+  listen_from: 0.35
+  walk_away_weeks: 2
+  # CPU trades: buyers are picked by buyer_base + winning share², looking for a weak spot (its starter below the
+  # typical one by more than weak_spot_min points x position value; a missing starter counts missing_starter_skill)
+  buyer_base: 0.1
+  weak_spot_min: 3
+  missing_starter_skill: 40
+  upgrade_min: 5                     # the target is at least this many points better than the buyer's starter
+  seller_discount: 0.8               # target score: value to the buyer - this x value to the seller
+  package_margin: 1.03               # the buyer offers what the seller values this much more than the player (1 to the person's team)
+  package_rounds: 4                  # pieces it adds at most
+  trades_per_week: 2                 # CPU-to-CPU trades a week at most
+  inbox_max: 3                       # offers waiting for the person at most
+  offer_weeks: 1                     # an offer to the person stands this many more weeks
+  # draft day: a CPU team up to trade_up_window picks later moves up (in the first trade_up_rounds rounds) for a player it
+  # values trade_up_gap x + trade_up_gap_points over its next choice, who will likely be gone (trade_up_chance), paying chart value
+  trade_up_rounds: 5
+  trade_up_window: 16
+  trade_up_gap: 1.06
+  trade_up_gap_points: 1
+  trade_up_chance: 0.7
+  trade_up_early: 0.6                # each CPU pick a trade up is looked for with this chance in rounds 1-2, trade_up_late later
+  trade_up_late: 0.35
+  weekly_attempts: 3                 # in the season: tries a week to find a trade between CPU teams (or an offer to the person) ...
+  weekly_offer_chance: 0.3           # ... and the chance a CPU team's idea becomes an offer to the person
+  traded_recently: 26                # weeks a CPU team keeps a player it traded for (the off-season's steps count)
+  chart_beyond: 1                    # a pick beyond the draft chart's last point is worth this much
+  min_value: 1                       # a player is worth at least this much (one without a position group: just this)
+  salary_back_max: 3                 # a buyer over the cap after a trade sends back up to this many contracts ...
+  salary_back_replaced: 2            # ... the cap hit of the player it replaces counts this many times (he goes first)
+  draft_partners: 6                  # the draft: the person can trade the pick on the clock with the teams of the next this many picks
+  trade_up_extra_picks: 3            # a team trading up adds at most this many picks to its own
+  trade_up_early_rounds: 2           # trade_up_early is the chance in the rounds up to this one, trade_up_late after it
+
+negotiation:
+  # what a player asks a team for less (or more): a contender's discount (ring chasing) up to ring_discount
+  # (x vet_ring_discount for a player under ring_age), a losing team (below losing_below) pays losing_premium more
+  ring_discount: 0.12
+  ring_age: 29
+  young_ring_share: 0.45
+  losing_below: 0.3
+  losing_premium: 0.05
+  old_team_discount: 0.08            # back to his old team: up to this much less (x loyalty / 99)
+  resign_discount: 0.15              # signing again with his team: up to this much less (x loyalty / 99) ...
+  winning_discount: 0.05             # ... and this much less when the team wins now (in season, above winning_from)
+  winning_from: 0.6
+  tight_cap: 0.03                    # a team with less than this share of the cap free: he asks tight_cap_discount less
+  tight_cap_discount: 0.03
+  discount_min: -0.1
+  discount_max: 0.3
+  # the person's offer (rated against what he wants, 1 = all of it): accepted from accept_from, countered from
+  # counter_from (up to counter_rounds times, always from final_counter_from), else he walks away for walk_away_weeks
+  accept_from: 0.98
+  counter_from: 0.75
+  counter_rounds: 4
+  final_counter_from: 0.9
+  walk_away_weeks: 3
+  sealed_from: 0.9                   # free agency: an offer this good goes on the table (he decides when the week ends)
+  guarantees_short: 0.85             # he says he wants more guaranteed money below this share of what he wants ...
+  per_season_short: 0.93             # ... more money per season below this share
+  resign_loyalty: 5                  # signing again makes him this much more loyal
+  record_games: 4                    # games after which this season's record shows how good a team is (before: last season's counts too)
+
+need:
+  # how much a team needs a player (1: he would start): by how many at his position are better (by more than need_margin)
+  need_margin: 0.5
+  starter: 1
+  next_up: 0.6                       # the first one behind the starters ...
+  second_up: 0.4                     # ... the second
+  deep: 0.2                          # ... further back
+  best_bonus: 0.1                    # he would be the best: + this
+  desperate_from: 6                  # he would start where the starter is more than this below the typical starter: up to desperate_max more (per desperate_span points)
+  desperate_span: 25
+  desperate_max: 0.4
+  desperate_qb: 1.25                 # ... x this at quarterback
+  missing_starter: 40                # the skill of a starter the team does not have
+  below_minimum: 0.7                 # a team below its minimum at the position needs him at least this much ...
+  above_maximum: 0.6                 # ... and one at its maximum this much less
+
+free_agency:
+  # the CPU teams' re-signings after the season: a star (standing star_standing, or one of the best star_rank at
+  # his position) almost always; others not when old (old_age, standing below old_standing) or when the ask is more than
+  # overpay x what he is worth to them
+  star_standing: 0.55
+  star_rank: 2
+  old_age: 34
+  old_standing: 0.3
+  overpay: 1.1
+  star_room_cuts: 8                  # to keep a star a team releases up to this many contracts that give the least for their money
+  keep_standing: 0.6                 # ... never one of this standing or better
+  # the money a team keeps free: rookie_reserve of the cap for its draft class (until the draft), season_reserve for the season
+  rookie_reserve: 0.04
+  season_reserve: 0.025
+  draft_class: 7                     # roster spots the draft class fills
+  # free agency: a player in the middle of the market (standing below middle_standing) is picked up in a week with
+  # first_week_chance (later: later_week_chance)
+  middle_standing: 0.3
+  first_week_chance: 0.4
+  later_week_chance: 0.6
+  injured_weeks: 4                   # nobody signs a player out longer than this
+  # a player takes an offer rated at least picky_first (- picky_weekly a week, - picky_unsigned once he went unsigned a season);
+  # his choice: the rating + bid_need x need (at most bid_need_max) + up to bid_noise
+  picky_first: 0.97
+  picky_weekly: 0.04
+  picky_unsigned: 0.06
+  bid_need: 0.04
+  bid_need_max: 1.2
+  bid_noise: 0.02
+  # cap pressure: a team with more than pressure_from of the cap unused pays up (full pressure pressure_span more)
+  pressure_from: 0.04
+  pressure_span: 0.12
+  signings_base: 3                   # signings a week at most: this + up to signings_pressure more under full pressure
+  signings_pressure: 3
+  good_player: 0.35                  # a player this good (standing): a team with room wants him at least rotation_need x pressure
+  rotation_need: 0.7
+  min_need: 0.3                      # a team needs a player at least this much to bid
+  backup_price: 1.15                 # what a backup costs: the minimum x this
+  most_base: 1.1                     # the most a team pays: worth x need x (most_base + most_pressure x pressure)
+  most_pressure: 0.3
+  wanted_standing: 0.25              # a player others want too (this standing): he gets bid_up_base + bid_up_pressure x pressure of the gap to the most, else bid_up_other
+  bid_up_base: 0.3
+  bid_up_pressure: 0.6
+  bid_up_other: 0.1
+  # extensions in the new league year: players entering their last year, younger than extension_age, standing at least
+  # extension_standing, needed at least extension_need
+  extension_age: 31
+  extension_standing: 0.3
+  extension_need: 0.6
+  # cap casualties: veterans (from casualty_age) who cost more than they bring - the waste at least casualty_waste x the cap hit
+  # and at most casualty_savings x what cutting him saves (at least casualty_min_savings of the cap), up to casualty_cuts a team
+  casualty_age: 27
+  casualty_waste: 0.45
+  casualty_savings: 2.5
+  casualty_min_savings: 0.01
+  casualty_need: 0.2                 # (what he brings: worth x min(1, need + this))
+  casualty_cuts: 4
+  # in the season: a team with cap room (upgrade_room of the cap, a chance of upgrade_chance a week) signs a free agent who
+  # would start (need 1; a rich team - rich_room - from rich_need), worth at least upgrade_min (standing x position value)
+  upgrade_room: 0.03
+  upgrade_chance: 0.5
+  rich_room: 0.1
+  rich_need: 0.6
+  upgrade_spare: 0.01                # ... keeping this share of the cap free
+  upgrade_min: 0.08
+  fill_experience: 2                 # room kept to fill the roster: the minimum salary of a player of this many seasons per open spot
+  news_standing: 0.2                 # signing a player of this standing (or better) is news
+
+roster:
+  # filling rosters: a player needed at a position below its minimum scores fill_needed, + fill_need x need + fill_standing x
+  # standing - his ask / fill_price (thousands); the person's team only signs depth asking up to fill_cheap x the minimum
+  fill_needed: 10
+  fill_need: 3
+  fill_standing: 5
+  fill_price: 2000
+  fill_cheap: 1.5
+  # cuts: the lowest value goes - skill against the league's average at his position (cut_unknown_average if none), cut_surplus
+  # less when the team is over the maximum there, rookies cut_rookie (+ development above 50 / cut_development) more,
+  # cut_age less a year past cut_age_from, and what cutting him saves / cut_savings (over the cap: / cut_savings_over_cap)
+  cut_no_group: -50
+  cut_unknown_average: 60
+  cut_surplus: 3
+  cut_rookie: 2
+  cut_development: 15
+  cut_age_from: 30
+  cut_age: 0.8
+  cut_savings: 6000
+  cut_savings_over_cap: 2000
+  cut_notable: 5                     # a cut player this much better than the average at his position makes the news
+  new_player_depth_margin: 2         # a CPU team's new player (rookie, signing, trade) this much better than one ahead of him moves up
+  returners: 2                       # kick and punt returners on the depth chart
+  coverage_players: 15               # players of the coverage units (backups of the fast positions)
+  fill_rounds: 3                     # after the final cuts: rounds of signings (and of releases to make room) for short rosters ...
+  fill_experience: 3                 # ... a team needs the minimum salary of a player of this many seasons per open spot
+
+contracts:
+  # the market: the best contract at each position (APY in 2026, growing with the cap) ...
+  top_contract: {QB: 63000, DE: 50000, WR: 42150, CB: 33750, DT: 34000, OL: 29000, S: 25200, RB: 22500, LB: 21000, TE: 19100,
+                 K: 7000, P: 4100, FB: 3800, LS: 1600}
+  # ... and how many players of the position are paid like starters
+  paid_like_starters: {QB: 30, DE: 45, WR: 55, CB: 55, DT: 40, OL: 110, S: 40, RB: 20, LB: 40, TE: 25, K: 22, P: 18, FB: 6, LS: 8}
+  # [up to this age, years]: the length a player wants
+  contract_years: [[25, 5], [28, 4], [30, 3], [32, 2]]
+  top_contract_other: 3000           # a group not in top_contract (and paid_other players paid like starters)
+  paid_other: 10
+  market_reset: 1.3                  # a record deal raises the position's top contract, to at most this x the standard
+  # a player's standing (1: the best ... 0: a backup): e^(-standing_curve x rank / starters paid); quarterbacks
+  # e^(-standing_qb x rank / paid - qb_backup_drop x (rank / paid - qb_backup_from)): a backup is paid like one
+  standing_curve: 2.1
+  standing_qb: 1.2
+  qb_backup_from: 0.9
+  qb_backup_drop: 5
+  worth_curve: 0.85                  # worth: the minimum + (top - minimum) x standing to this power
+  prime: 29                          # past his prime (prime_late for quarterbacks and specialists) the market pays aging (aging_late) less a year, at least aging_floor
+  prime_late: 32
+  aging: 0.09
+  aging_late: 0.06
+  aging_floor: 0.35
+  years_older: 1                     # the length a player wants: by age (contract_years), older ones this many years
+  fringe_standing: 0.15              # a fringe player (below this standing) gets 2 years (3 when paid above twice the minimum) at most ...
+  scrub_standing: 0.05               # ... and below this 1 or 2
+  bonus_base: 0.05                   # the signing bonus: this + bonus_standing x standing of the total
+  bonus_standing: 0.35
+  guaranteed_base: 0.12              # guaranteed in all: this + guaranteed_standing x standing of the total
+  guaranteed_standing: 0.6
+  ego_min: 0.92                      # how much a player thinks of himself: ego_min .. ego_min + ego_range x what he is worth
+  ego_range: 0.23
+  # how a player rates an offer against what he wants: guaranteed money counts in full, the rest x unguaranteed_value;
+  # a length off by a year costs length_penalty (at most down to length_penalty_min)
+  unguaranteed_value: 0.75
+  length_penalty: 0.06
+  length_penalty_min: 0.6
+  max_give: 0.12                     # his counter-offer comes down by (1 - rating) x first_give (later: later_give), at most max_give
+  first_give: 0.3
+  later_give: 0.4
+  rookie_age: 22                     # a player without a known rookie season came into the league at this age
+  undrafted_bonus: 5                 # an undrafted rookie's signing bonus (thousands): this much ...
+  undrafted_bonus_steps: 5           # ... plus one of this many steps ...
+  undrafted_bonus_step: 5            # ... of this much each
+  fringe_years: 2                    # a fringe player (fringe_standing) wants this many years at most ...
+  fringe_paid_years: 3               # ... this many when he is paid more than ...
+  fringe_paid: 2                     # ... this many times the minimum salary
+  scrub_years: 1                     # a scrub (scrub_standing) wants this many years ...
+  scrub_years_range: 2               # ... plus 0 to this many minus one
+
+draft:
+  # the CPU's draft board: a prospect's looks (the scouts' estimate + production_weight x (production - 0.5)) + need + taste,
+  # against the typical starter at his position, x position value
+  production_weight: 6
+  need_weight: 0.4                   # need: (looks - the team's weakest starter there) x this, between need_min and need_max ...
+  need_min: -3
+  need_max: 6
+  old_starters_age: 31               # ... + old_starters_need when the starters there average this age or more ...
+  old_starters_need: 2
+  short_need: 3                      # ... + this for each player the team is short of its minimum there (at most short_max) ...
+  short_max: 2
+  enough_need: 8                     # ... - this when it has its maximum there ...
+  drafted_qb: 12                     # ... - this for each quarterback it drafted already (specialists: drafted_specialist, others drafted_other)
+  drafted_specialist: 20
+  drafted_other: 4
+  taste: 3                           # every team sees a prospect a little differently: up to taste points either way (half of it each way)
+  level_offset: 25                   # the boards (the CPU's and the consensus): (looks - the typical starter + this) x position value
+
+offseason:
+  # the age around which a position's players call it a day (a high longevity: later)
+  retire_age: {QB: 36, K: 38, P: 38, LS: 37, RB: 30, FB: 31, WR: 32, TE: 32, OL: 33, DE: 32, DT: 32, LB: 31, CB: 31, S: 32}
+  # retirements after the season: a player from retire_from (anybody unsigned for two seasons) retires with the chance
+  # 1 / (1 + e^-x), x = (age - the retirement age of his position (retire_age) - (longevity - 50) / 50 x retire_longevity) x retire_slope - retire_offset,
+  # - retire_starter for a starter, + retire_backup for one deep on the depth chart, + retire_unsigned for a free agent,
+  # - (skill - the league average at his position) / retire_skill_span (at most retire_skill_max either way); everybody at retire_always
+  retire_from: 27
+  retire_age_other: 32
+  retire_longevity: 4
+  retire_slope: 0.75
+  retire_offset: 0.85
+  retire_starter: 0.8
+  retire_backup: 0.5
+  retire_unsigned: 1
+  retire_skill_span: 5
+  retire_skill_max: 1.5
+  retire_always: 45
+  retire_no_group: 50                # (the skill of a player without a position)
+  fa_trade_attempts: 5               # CPU trade attempts each week of free agency ...
+  fa_trade_offers: 0.3               # ... and the chance that an attempt makes the person's team an offer
+  rookie_loyalty: 35                 # a rookie's loyalty to his team: from this ...
+  rookie_loyalty_range: 40           # ... to this much more
+  notable_skill: 6                   # a retirement is news for a player this much better than his position's average ...
+  notable_games: 50                  # ... or with this many games played
+  retire_unsigned_seasons: 2         # a free agent without a team for this many seasons retires
+  rust_physical_min: 2               # a season without a team costs a free agent this much speed, acceleration, agility and stamina ...
+  rust_physical_max: 5               # ... up to this much
+  rust_skill_min: 2                  # ... and this much of each rating of his job ...
+  rust_skill_max: 5                  # ... up to this much
+
+development:
+  # the age at which a position's players are at their best (the decline starts later with a high longevity)
+  peak_age: {QB: 30, RB: 26, FB: 26, WR: 28, TE: 28, OL: 29, DE: 28, DT: 28, S: 28, LB: 27, CB: 27, K: 33, P: 33, LS: 33}
+  # [up to this age, factor]: how much a good season lifts a player (older: youth_older)
+  youth: [[24, 1.4], [27, 1.0], [30, 0.6]]
+  youth_older: 0.3
+  # during the season: every game a player is graded by what he did; "lately" keeps recent_keep of the last games' grades
+  recent_keep: 0.65
+  streak_up: 1.6                     # a stretch this strong may lift a young player (up to streak_age) a point (streak_up_chance x room to grow) ...
+  streak_age: 27
+  streak_up_chance: 0.3
+  streak_down: -1.6                  # ... this weak costs one at any age (streak_down_chance)
+  streak_down_chance: 0.25
+  form_keep: 0.6                     # the hot streak: earlier games count this much less per game (a game adds at most form_game_max)
+  form_game_max: 2
+  hot_scale: 1.2                     # hot streak: + floor(form x hot_scale - hot_offset) rating points in his job, at most hot_max
+  hot_offset: 0.6
+  hot_max: 3
+  snaps_to_know: 250                 # a rookie's scouting ranges are gone after this many snaps ...
+  week_to_know: 0.03                 # ... and close this much a week anyway (practice)
+  preseason_learning: 1.5            # a preseason game: a rookie's chance to learn x this (they play a lot and the coaches teach)
+  preseason_season_grades: 0         # a preseason game's grades count this much toward the season's grades (they still make streaks)
+  rookie_learning: 0.55              # a rookie playing (rookie_snaps snaps or more for the full chance) gains a point in his job with this x development
+  rookie_snaps: 45
+  # workload: snaps / load_snaps x (1 + touches / load_touches + tackles / load_hits) x (load_durability_base - load_durability x durability / 99);
+  # wear_recovery of it is still in his legs a week later, beyond wear_free it costs physical rating points (at most wear_max)
+  load_snaps: 65
+  load_touches: 30
+  load_hits: 20
+  load_durability_base: 1.25
+  load_durability: 0.5
+  wear_recovery: 0.45
+  wear_free: 1.2
+  wear_max: 2
+  # knocks he plays through: knock_chance per game (from knock_min_snaps snaps; x snaps / knock_snaps up to knock_snaps_max,
+  # x (knock_durability_base - knock_durability x durability / 99), x (1 + touches / knock_touches))
+  knock_chance: 0.05
+  knock_min_snaps: 10
+  knock_snaps: 60
+  knock_snaps_max: 1.5
+  knock_durability_base: 1.3
+  knock_durability: 0.6
+  knock_touches: 25
+  # after the season, aging: the decline starts at the peak age of his position (peak_age) + (longevity - 50) / 50 x
+  # longevity_years, at decline_base + decline_rate per year past it (x a random factor 0.5 .. 1.5) in the physical ratings,
+  # decline_power of that in strength and power, and decline_skill of it in his skills from decline_skill_after years on
+  peak_age_other: 28
+  longevity_years: 4
+  decline_base: 0.4
+  decline_rate: 0.4
+  decline_power: 0.6
+  decline_skill: 0.35
+  decline_skill_after: 2
+  decline_skill_span: 3
+  # growth: a player up to growth_age gains up to growth_skill (x (growth_age + 1 - age) / 4) in his skills and growth_physical
+  # in speed, acceleration and strength; from mental_from to mental_to up to mental_growth in the mental ratings
+  growth_age: 25
+  growth_skill: 1.4
+  growth_physical: 0.8
+  mental_from: 23
+  mental_to: 31
+  mental_growth: 0.9
+  # a draft pick's first three seasons: development x pro_growth x (1, 0.75, 0.5) in his skills (x 0.6 .. 1.4), up to pro_mental of it in the mental ratings
+  pro_growth: 9
+  pro_mental: 0.5
+  season_scale: 0.45                 # the season's grade: rating points per point of it, x the youth factor for a good season, at most season_max either way
+  season_max: 4
+  depth_margin: 3                    # a backup this much better than the starter takes over after the season
+  # how much a rookie's development rating makes him grow: ((development - growth_from) / growth_span, 0 .. 1) to the
+  # power growth_curve (a high one counts much more than an average one)
+  growth_from: 40
+  growth_span: 59
+  growth_curve: 1.3
+  # room to grow: (headroom_top - rating) / headroom_span (0 .. 1: a 95 hardly gets better); room to fall:
+  # (rating - headroom_bottom) / headroom_fall_span, at least headroom_fall_min (a 30 hardly gets worse)
+  headroom_top: 96
+  headroom_span: 24
+  headroom_bottom: 25
+  headroom_fall_span: 40
+  headroom_fall_min: 0.2
+  physical: [speed, acceleration, agility]          # the ratings aging takes first (and wear costs)
+  power: [strength, jumping, stamina, durability]   # ... and decline_power of it here
+  mental: [vision, awareness, pass_read_coverage, composure, discipline, leadership]   # experience; aging spares them
+  # the depth chart: a rookie gets rookie_credit + (development - rookie_credit_from) / rookie_credit_span extra (0 .. rookie_credit_max)
+  rookie_credit: 1
+  rookie_credit_from: 40
+  rookie_credit_span: 15
+  rookie_credit_max: 5
+  longevity_middle: 50               # aging: the longevity rating that starts the decline at the peak age (longevity_years per longevity_scale points more)
+  longevity_scale: 50
+  decline_noise_min: 0.5             # the decline's random factor
+  decline_noise_max: 1.5
+  growth_young_extra: 1              # growth's age factor: (growth_age + growth_young_extra - age) / growth_young_span
+  growth_young_span: 4
+  growth_physical_ratings: [speed, acceleration, strength]   # the physical ratings a young player grows in
+  pro_seasons: [1, 0.75, 0.5]        # a draft pick's growth in his first, second, third ... season (x development x pro_growth)
+  pro_noise_min: 0.6                 # ... x a random factor per rating
+  pro_noise_max: 1.4
+  news_movers: 3                     # the off-season news: the players who lost and gained the most (this many each)
+  unknown_rating: 50                 # a rating name in these lists that no rating has (a typo) counts as this rating
+
+game_grades:
+  # every game a player is graded per rating by what he did (0: normal for his job, about +-1 for a very good / bad game)
+  # an average game of a group's starters (measured over league seasons), taken off every grade: a normal season is worth nothing
+  center:
+    CB: {coverage: 0.20, tackle: -0.055}
+    DE: {pass_rush: 0.285, run_coverage: 0.353, tackle: 0.019}
+    DT: {pass_rush: 0.077, run_coverage: 0.272, tackle: 0.014}
+    K: {kick_accuracy: 0.129, kick_power: 0.124}
+    LB: {coverage: 0.102, pass_rush: 0.084, run_coverage: 0.038, tackle: -0.209}
+    OL: {pass_blocking: -0.015, run_blocking: -0.099}
+    P: {kick_power: 0.225}
+    QB: {awareness: -0.01, break_tackle: -0.195, deep_accuracy: 0.107, hold_onto_ball: -0.244, juke: -0.146, pass_accuracy: 0.023,
+         pass_read_coverage: 0.068, vision: -0.141}
+    RB: {break_tackle: 0.059, catch_in_traffic: 0.05, catch: 0.173, hold_onto_ball: -0.069, juke: 0.136, run_route: -0.163}
+    S: {coverage: 0.086, tackle: -0.108}
+    TE: {catch_in_traffic: 0.157, catch: -0.114, hold_onto_ball: -0.07, juke: 0.149, run_route: 0.089}
+    WR: {catch_in_traffic: 0.039, catch: -0.324, hold_onto_ball: -0.061, juke: 0.116, run_route: 0.019}
+  grade_min: -1.5                    # one grade of one game is at least this and at most grade_max (unless said otherwise)
+  grade_max: 1.5
+  # a quarterback with pass_min_attempts passes or more: pass_accuracy (completion rate - completion_normal) x completion_scale,
+  # deep_accuracy (yards per attempt - yards_per_attempt_normal) / yards_per_attempt_span
+  pass_min_attempts: 8
+  completion_normal: 0.63
+  completion_scale: 3
+  yards_per_attempt_normal: 7.3
+  yards_per_attempt_span: 5
+  # pass_read_coverage: (interception_normal - interception rate) x interception_scale, between interception_min and interception_max;
+  # vision interception_vision of it
+  interception_normal: 0.024
+  interception_scale: 25
+  interception_min: -1.5
+  interception_max: 0.6
+  interception_vision: 0.7
+  # awareness: (sack_normal - sacks per drop back) x sack_scale, between sack_min and sack_max
+  sack_normal: 0.065
+  sack_scale: 8
+  sack_min: -1
+  sack_max: 0.5
+  # a runner (back or quarterback) with rush_min_attempts carries: vision (yards per carry - rush_yards_normal) / rush_yards_span,
+  # break_tackle (yards after contact per carry - after_contact_normal) / after_contact_span, juke (broken tackles per carry - broken_normal) x broken_scale
+  rush_min_attempts: 6
+  rush_yards_normal: 4.2
+  rush_yards_span: 3
+  after_contact_normal: 1.8
+  after_contact_span: 2
+  broken_normal: 0.12
+  broken_scale: 5
+  fumble: 0.8                        # hold_onto_ball: - this a fumble; no fumble in secure_touches touches or more: + secure
+  secure_touches: 15
+  secure: 0.1
+  # a receiver with min_targets targets: catching (catch rate - catch_rate_normal) x catch_rate_scale - drop a drop,
+  # run_route (yards per target - yards_per_target_normal) / yards_per_target_span, catch_in_traffic (catch rate in traffic -
+  # traffic_normal) x traffic_scale x (targets in traffic / traffic_full, at most 1), juke broken_reception a broken tackle
+  min_targets: 3
+  catch_rate_normal: 0.65
+  catch_rate_scale: 2.5
+  drop: 0.5
+  yards_per_target_normal: 8
+  yards_per_target_span: 10
+  traffic_normal: 0.45
+  traffic_scale: 1.5
+  traffic_full: 2
+  broken_reception: 0.25
+  # a lineman with line_min_snaps snaps, by his team's numbers: pass_blocking (line_sack_normal - sacks per drop back) x line_sack_scale
+  # (between line_sack_min and line_sack_max), run_blocking (yards per carry - line_rush_yards_normal) / line_rush_yards_span
+  line_min_snaps: 25
+  line_sack_normal: 0.065
+  line_sack_scale: 6
+  line_sack_min: -1
+  line_sack_max: 0.6
+  line_rush_yards_normal: 4.2
+  line_rush_yards_span: 3
+  defense_min_snaps: 20              # defenders are graded from this many snaps
+  # a defensive lineman: pass_rush dl_sack a sack + dl_rush_tfl a tackle for loss - dl_rush_base; run_coverage dl_run_tfl a
+  # tackle for loss + dl_run_tackle a tackle - dl_run_base; tackle dl_tackle a tackle - dl_missed a missed one
+  dl_sack: 0.6
+  dl_rush_tfl: 0.2
+  dl_rush_base: 0.25
+  dl_run_tfl: 0.3
+  dl_run_tackle: 0.05
+  dl_run_base: 0.15
+  dl_tackle: 0.03
+  dl_missed: 0.3
+  # a linebacker: tackle lb_tackle a tackle - lb_missed a missed one - lb_tackle_base; run_coverage lb_run_tfl a tackle for loss
+  # - lb_run_base; coverage lb_pass_def a pass defended + lb_int an interception - lb_coverage_base; pass_rush lb_sack a sack
+  lb_tackle: 0.04
+  lb_missed: 0.3
+  lb_tackle_base: 0.2
+  lb_run_tfl: 0.4
+  lb_run_base: 0.1
+  lb_pass_def: 0.4
+  lb_int: 0.8
+  lb_coverage_base: 0.1
+  lb_sack: 0.5
+  # a defensive back: coverage db_pass_def a pass defended + db_int an interception - db_coverage_base; tackle db_tackle a tackle - db_missed a missed one
+  db_pass_def: 0.4
+  db_int: 0.9
+  db_coverage_base: 0.2
+  db_tackle: 0.03
+  db_missed: 0.3
+  # a kicker: kick_accuracy kick_made a field goal - kick_missed a missed one - extra_point_missed a missed extra point; kick_power kick_long a 50-yarder
+  kick_made: 0.15
+  kick_missed: 0.6
+  extra_point_missed: 0.4
+  kick_long: 0.3
+  # a punter with punt_min punts: kick_power (average - punt_normal) / punt_span
+  punt_min: 2
+  punt_normal: 46
+  punt_span: 6
+
+injuries:
+  # knocks he plays through: the kind is the first whose `below` the roll (0 .. 1) is under (the last one otherwise); the place is
+  # each of its places with knock_place_chance in turn (the last one otherwise); every rating it lists costs knock_cost_min ..
+  # knock_cost_max points for knock_weeks_min .. knock_weeks_max weeks
+  knock_types:
+    - {below: 0.6, places: [ankle, hamstring, knee], ratings: [speed, acceleration, agility]}
+    - {below: 0.85, places: [shoulder, ribs], ratings: [strength, tackle, pass_blocking, run_blocking, pass_arm_strength]}
+    - {below: 1, places: [hand, wrist], ratings: [catch, catch_in_traffic, hold_onto_ball, pass_accuracy]}
+  knock_place_chance: 0.5
+  knock_cost_min: 2
+  knock_cost_max: 4
+  knock_weeks_min: 1
+  knock_weeks_max: 3
+  # serious injuries, the longest first: a tier holds the injuries of from_weeks weeks out or more; each type is [the roll below
+  # which it is this one (the last one otherwise), its name, legs or other: the tier's ratings it may cost him for good]
+  tiers:
+    - from_weeks: 30
+      types: [[0.65, torn ACL, legs], [1, torn Achilles, legs]]
+      legs: [speed, acceleration, agility, jumping]
+      other: []
+    - from_weeks: 10
+      types: [[0.35, broken leg, legs], [0.55, Lisfranc injury, legs], [0.75, torn pectoral, other], [0.9, torn meniscus, legs],
+              [1, neck injury, other]]
+      legs: [speed, acceleration, agility, jumping]
+      other: [strength, pass_blocking, run_blocking, tackle, durability]
+    - from_weeks: 6
+      types: [[0.3, high ankle sprain, legs], [0.55, MCL sprain, legs], [0.8, broken arm, other], [1, foot fracture, legs]]
+      legs: [speed, acceleration, agility]
+      other: [strength, catch, pass_accuracy, tackle]
+    - from_weeks: 0
+      types: [[0.35, hamstring strain, legs], [0.6, shoulder sprain, other], [0.8, concussion, other], [1, knee sprain, legs]]
+      legs: [speed, acceleration]
+      other: [strength, awareness]
+  # a serious injury costs weeks / longevity_weeks_min .. weeks / longevity_weeks_max + longevity_extra longevity points
+  longevity_weeks_min: 3
+  longevity_weeks_max: 2
+  longevity_extra: 2
+  # with the chance weeks / lasting_weeks (at most lasting_max) it costs 0 .. weeks / lasting_weeks_per_point (at least 1) points
+  # for good in each of the tier's ratings that is above lasting_floor
+  lasting_weeks: 14
+  lasting_max: 0.85
+  lasting_floor: 20
+  lasting_weeks_per_point: 4
+
+positions:
+  # the position groups: what each one is worth on the draft boards (a quarterback more than a kicker; value_other for others)
+  value: {QB: 1.25, DE: 1, OL: 0.95, CB: 0.95, WR: 0.95, DT: 0.9, S: 0.8, LB: 0.8, TE: 0.8, RB: 0.75, FB: 0.4, K: 0.35, P: 0.3, LS: 0.2}
+  value_other: 0.5
+  # a typical starter's depthSkill (the boards compare prospects with it)
+  typical: {QB: 82, RB: 86.5, FB: 70, WR: 84, TE: 73, OL: 79.5, DE: 82.5, DT: 80.5, LB: 79.5, CB: 90, S: 81, K: 86.5, P: 80, LS: 60}
+  typical_other: 75
+  starters: {QB: 1, RB: 1, FB: 1, WR: 3, TE: 1, OL: 5, DE: 2, DT: 2, LB: 3, CB: 3, S: 2, K: 1, P: 1, LS: 1}   # how many start
+  starters_other: 1
+  minimum: {QB: 2, RB: 3, FB: 0, WR: 5, TE: 3, OL: 8, DE: 4, DT: 4, LB: 4, CB: 5, S: 3, K: 1, P: 1, LS: 1}    # how many a team keeps at least
+  minimum_other: 0
+  maximum: {QB: 3, RB: 4, FB: 1, WR: 7, TE: 4, OL: 10, DE: 6, DT: 6, LB: 6, CB: 7, S: 5, K: 1, P: 1, LS: 1}   # how many it wants at most
+  maximum_other: 2
+  # ... and in the off-season, on the 90-man camp roster (until the final cuts)
+  camp_maximum: {QB: 4, RB: 6, FB: 2, WR: 12, TE: 5, OL: 16, DE: 9, DT: 7, LB: 9, CB: 10, S: 6, K: 2, P: 2, LS: 1}
+  camp_maximum_other: 3
+  # what a group's job asks for: the ratings its game grades, hot streaks, a rookie's progress and growth go to
+  job_ratings:
+    QB: [pass_accuracy, deep_accuracy, pass_read_coverage, vision, awareness]
+    RB: [vision, break_tackle, juke, catch]
+    FB: [run_blocking, break_tackle, catch]
+    WR: [catch, catch_in_traffic, run_route]
+    TE: [catch, catch_in_traffic, run_route, run_blocking]
+    OL: [pass_blocking, run_blocking]
+    DE: [pass_rush, run_coverage, tackle]
+    DT: [pass_rush, run_coverage, tackle]
+    LB: [tackle, run_coverage, coverage]
+    CB: [coverage, tackle]
+    S: [coverage, tackle, run_coverage]
+    K: [kick_accuracy, kick_power]
+    P: [kick_power, kick_accuracy]
+    LS: [pass_blocking]
+
+draft_class:
+  # a made-up draft class: how many prospects of each group (about as often as in an NFL draft; listed in this order, then shuffled)
+  # (enough for the draft's 224 picks and the undrafted rookies who fill the 90-man camp rosters)
+  size: {QB: 46, RB: 68, FB: 9, WR: 121, TE: 51, OL: 166, DE: 98, DT: 81, LB: 89, CB: 115, S: 74, K: 17, P: 17, LS: 9}
+  # [rank in the class, points against a typical starter at his position]: the k-th best prospect's level (straight lines in between)
+  level_of_rank: [[1, 3], [5, 1], [32, -5], [100, -10], [224, -15], [330, -18], [960, -25]]
+  specialists_from: 60               # specialists and fullbacks are never among this many best prospects
+  template_pool: 12                  # a prospect is modelled on one of the league's players at about his level, among the closest this many
+  # the template with noise: height +- height_noise inches, weight +- weight_noise pounds, every rating + gauss(rating_noise)
+  height_noise: 1
+  weight_noise: 8
+  rating_noise: 3
+  fullback_blocking: 25              # a fullback (modelled on a back) blocks this much better and weighs fullback_weight more ...
+  fullback_weight: 20
+  snapper_blocking: 15               # ... a long snapper (modelled on a lineman) blocks this much worse
+  young_legs: [speed, acceleration, agility, reaction]   # young legs (no specialist): young_legs_min .. young_legs_max more here
+  young_legs_min: 1
+  young_legs_max: 3.5
+  # against the group's drift since the league started: - drift_weight x the drift of each rating (at most drift_limit either way);
+  # then up to level_passes passes move his job's ratings to the level he is meant to have (until within level_precision)
+  drift_weight: 1.5
+  drift_limit: 4
+  level_passes: 4
+  level_precision: 0.5
+  leadership_min: 5                  # young: leadership_min .. leadership_max less leadership, 0 .. composure_max less composure, 0 .. awareness_max less awareness
+  leadership_max: 15
+  composure_max: 8
+  awareness_max: 6
+  # his longevity: by position (longevity_other for others) + gauss(longevity_noise) + (level - the typical starter) x longevity_level
+  # (between longevity_level_min and longevity_level_max)
+  longevity: {QB: 66, K: 76, P: 76, LS: 72, OL: 56, RB: 40, FB: 50, CB: 46}
+  longevity_other: 51
+  longevity_noise: 12
+  longevity_level: 0.6
+  longevity_level_min: -4
+  longevity_level_max: 10
+  development_mean: 50               # the hidden development rating: gauss(development_mean, development_noise)
+  development_noise: 16
+  age_mean: 22                       # his age: gauss(age_mean, age_noise), age_min .. age_max
+  age_noise: 0.8
+  age_min: 21
+  age_max: 24
+  tackle_share: 0.4                  # a lineman is listed as a tackle below this roll, a guard below guard_share, else a center
+  guard_share: 0.8
+  edge_share: 0.6                    # a defensive end is listed as an edge rusher below this roll
+  # the level he is meant to have: the typical starter when the league started (typical_skill_other without one) - skill_drift_weight x
+  # its drift since (at most skill_drift_limit either way) + the level of his rank + specialist_bonus for a specialist (never early
+  # picks, but often good enough to play) + gauss(level_noise)
+  typical_skill_other: 75
+  skill_drift_weight: 2
+  skill_drift_limit: 3
+  specialist_bonus: 7
+  level_noise: 1.5
+  # college statistics per group, in this order: [statistic, a poor prospect's number, an outstanding one's] (poor above outstanding:
+  # fewer is better)
+  college_stats:
+    QB: [[games, 11, 14], [cmp_pct, 57, 71], [pass_yds, 2600, 4600], [pass_td, 16, 44], [ints, 14, 4]]
+    RB: [[games, 11, 14], [rush_yds, 650, 1900], [rush_td, 5, 24], [rec, 8, 45]]
+    FB: [[games, 11, 14], [rush_yds, 20, 320], [rec, 3, 22]]
+    WR: [[games, 11, 14], [rec, 35, 110], [rec_yds, 480, 1700], [rec_td, 3, 17]]
+    TE: [[games, 11, 14], [rec, 15, 70], [rec_yds, 180, 950], [rec_td, 1, 11]]
+    OL: [[games, 11, 14], [starts, 6, 14], [sacks_allowed, 6, 0]]
+    DE: [[games, 11, 14], [tackles, 25, 65], [tfl, 5, 22], [sacks, 2, 15]]
+    DT: [[games, 11, 14], [tackles, 22, 60], [tfl, 4, 17], [sacks, 1, 9]]
+    LB: [[games, 11, 14], [tackles, 55, 135], [tfl, 3, 18], [sacks, 0, 8], [ints, 0, 3]]
+    CB: [[games, 11, 14], [tackles, 22, 60], [ints, 0, 6], [pass_def, 4, 18]]
+    S: [[games, 11, 14], [tackles, 40, 100], [ints, 0, 6], [pass_def, 2, 12]]
+    K: [[games, 11, 14], [fg_pct, 68, 93], [fg_long, 44, 59]]
+    P: [[games, 11, 14], [punt_avg, 40, 48], [inside_20, 8, 28]]
+    LS: [[games, 11, 14]]
+  college_unrated: [games]           # college statistics that do not say how good he is (made up at random)
+  # his college numbers follow his level, roughly: (level - (the typical starter - college_level)) / college_span (0 .. 1),
+  # + a system's gauss(college_system) + gauss(college_noise) per statistic, between college_min and college_max
+  college_level: 22
+  college_span: 26
+  college_system: 0.15
+  college_noise: 0.22
+  college_min: -0.1
+  college_max: 1.15
+  # a class file (data/draft/<year>.yaml) without these: the prospect's age, height (inches), weight and development
+  file_age: 22
+  file_height: 74
+  file_weight: 230
+  file_development: 50
+  name_weight_min: 0.01              # the names (data/names: "name weight"): a name counts sqrt(weight), the weight at least this
+
+scouting:
+  # the ranges the teams see, when the class file does not give them: some prospects are scouted well (narrow ranges), some
+  # are not: a prospect's width is width_min .. width_max, each rating's that x spread_min .. spread_max (at least width_floor);
+  # the real value sits below_min .. below_max of the way up the range
+  width_min: 4
+  width_max: 15
+  spread_min: 0.6
+  spread_max: 1.4
+  width_floor: 2
+  below_min: 0.1
+  below_max: 0.9
+  # production: each rated college statistic from 0 (poor) to 1 (outstanding), at most production_max; production_unknown without any
+  production_max: 1.2
+  production_unknown: 0.5
+  board_production_weight: 6         # the consensus board: the scouts' estimate + this x (production - 0.5)
+
+news:
+  # one player's day in a few words: the most telling of passing (yards / day_pass_yards + TD x day_pass_td), rushing
+  # (yards / day_rush_yards + TD x day_rush_td), receiving (yards / day_rec_yards + TD x day_rec_td + catches x day_rec),
+  # sacks (x day_sack) and interceptions (x day_int)
+  day_pass_yards: 25
+  day_pass_td: 4
+  day_rush_yards: 10
+  day_rush_td: 6
+  day_rec_yards: 10
+  day_rec_td: 6
+  day_rec: 0.5
+  day_sack: 5
+  day_int: 6
+  impact_sack: 4                     # a side's best player of the day: fantasy points (PPR) + this a sack + impact_int an interception
+  impact_int: 5
+  stories: 2                         # the best this many big days (and new records) of a game are told
+  # an upset: both teams have played upset_games games and the loser's winning share was upset_margin or more above the winner's
+  # (a streak of upset_streak wins or more is told; a roster stronger by upset_roster: "on paper")
+  upset_games: 4
+  upset_margin: 0.35
+  upset_streak: 3
+  upset_roster: 12
+  playoff_upset_seeds: 3             # the playoffs: a seed this many places lower wins
+  rout_margin: 35                    # a rout: won by this many points (or by rout_big_margin with rout_points scored) ...
+  rout_points: 50
+  rout_big_margin: 21
+  shootout_points: 80                # ... a shootout: this many points in all
+  # a big day: pass_yards passing yards or pass_td touchdown passes; rush_yards rushing yards or rush_td rushing touchdowns; rec_yards
+  # receiving yards, rec_td touchdown catches or catches catches; sacks sacks; ints interceptions; field_goals field goals
+  pass_yards: 425
+  pass_td: 5
+  rush_yards: 180
+  rush_td: 4
+  rec_yards: 180
+  rec_td: 3
+  catches: 14
+  sacks: 4
+  ints: 3
+  field_goals: 6
+  # which big day comes first: passing yards / pass_yards_weight + TD, rushing yards / rush_yards_weight + TD, receiving yards /
+  # rec_yards_weight + TD, sacks x sack_weight, interceptions x int_weight, field goals x field_goal_weight
+  pass_yards_weight: 100
+  rush_yards_weight: 40
+  rec_yards_weight: 40
+  sack_weight: 1.5
+  int_weight: 2
+  field_goal_weight: 1
+  # records count after this many seasons of history: the league's single game and season records from league_records_from, the
+  # franchises' from franchise_records_from, career records career_records_after seasons later
+  league_records_from: 1
+  franchise_records_from: 2
+  career_records_after: 1
+  long_injury_weeks: 30              # an injury this long takes most of a year: he may miss the start of next season too
+
+injury_length:
+  # How long a new injury keeps a player out: 1, 2, ... 9 weeks with these weights (out of all weights here),
+  # then a good part of the season (season_weight) or most of a year (year_weight).
+  weeks_weights: [35, 25, 15, 9, 5, 3.5, 2.5, 2, 0]
+  serious: 4                         # weeks out from which an injury leaves a mark (longevity, maybe ratings)
+  news_weeks: 6                      # a starter out this many weeks is news
+  season_weight: 2.2                 # weight of an injury that costs a good part of the season ...
+  season_weeks_min: 10               # ... from this many weeks ...
+  season_weeks_max: 20               # ... to this many
+  year_weight: 0.9                   # weight of one that costs most of a year (a torn ACL or Achilles) ...
+  year_weeks_min: 34                 # ... from this many weeks ...
+  year_weeks_max: 50                 # ... to this many (into the next season)
+  offseason_heal: 18                 # weeks that heal from the Super Bowl to free agency (the off-season is about 30 weeks) ...
+  camp_heal: 5                       # ... and from the draft to training camp (the preseason's weeks heal one each)
+
+starting_contracts:
+  # The contracts a new career starts with (players whose team file has none): young players on rookie deals,
+  # veterans on market deals with a few years left; a team's payroll ends up under the cap.
+  rookie_deal_age: 24                # a new career: an undrafted player this young is on a rookie deal ...
+  slot_standing: 0.03                # ... at the draft slot his standing would have got (below this standing: undrafted) ...
+  slot_picks: 224                    # ... among this many picks
+  value_min: 0.78                    # a veteran's contract: his market value times a random factor from this ...
+  value_max: 1.05                    # ... to this (some a bargain, some overpaid)
+  loyalty: 25                        # a player's loyalty to his team: from this ...
+  loyalty_range: 60                  # ... to this much more
+  payroll_min: 0.9                   # a team's payroll ends up under this share of the cap ...
+  payroll_max: 0.98                  # ... to this share (random)
+  fit_floors: [0.6, 0.3]             # a payroll above it: the made-up contracts shrink alike (to this share at least), then every veteran's
+
+schedule:
+  # Making the season's schedule (who plays whom is the NFL's formula, data/rules.yaml): the search for the weeks.
+  attempts: 2000                     # the schedule: complete tries at most (the one with the fewest back-to-back rematches wins) ...
+  complete: 40                       # ... stopping after this many complete ones
+  week_budget: 20000                 # steps of the search for one week's games (then it tries again, allowing rematches)
+
+preseason:
+  # The preseason (every team's coaches, yours too): the starters (the first `starters` of each depth-chart group,
+  # positions.starters) play the first starter_quarters quarters of the week's game (the list: per preseason week);
+  # the second string takes over until second_string_share of the quarters left are played (rounded up), the rest of
+  # the depth chart plays the others. Rookies who do not start play every quarter after the starters'.
+  # If a quarter has too few players of a group, the closest players of the string before stay on.
+  starter_quarters: [1, 3, 1]       # week 2 is the dress rehearsal; the last game before the cuts belongs to the backups
+  knock_rest: 2                      # a starter with a knock (a mild injury he plays through) plays this many quarters less ...
+  wear_rest: 1                       # ... one with a heavy workload this many less (his wear more than wear_rest_from above development.wear_free)
+  wear_rest_from: 1
+  second_string_share: 0.5
+  # The final cuts after the preseason: a player's preseason (his average game grade, at most promise_max either way)
+  # changes his value by promise_weight x it; a rookie's extra credit (roster.cut_rookie ...) shrinks to no_promise x it
+  # if his preseason average was below no_promise_below
+  promise_weight: 3
+  promise_max: 1                     # (a typical preseason grade is between -0.4 and +0.4)
+  no_promise: 0.6
+  no_promise_below: -0.1
+# Online play: where the players meet and how long a lost connection is waited for. Not part of the
+# game's fingerprint (see config/simulation.yaml): the two players may have different values here.
+
+server:
+  port: 8080                         # the game server (tools/server.py) the desktop version looks for: ws://localhost:<port>/ws
+  list_refresh: 3                    # seconds between two looks at the server's open games
+
+direct:
+  # A desktop game hosted directly ("Direct (LAN / VPN)"): the others connect to this computer's address.
+  port: 47800                        # it listens here (TCP: the same WebSocket protocol as the game server) ...
+  discovery_port: 47801              # ... and answers "who hosts a game?" here (UDP)
+  # Looking for games, on every network this computer is on (a home network, any VPN):
+  discovery_interval: 2              # seconds between two searches (a broadcast where the network carries one)
+  sweep_max_hosts: 1024              # a network without broadcast (most VPN tunnels): every address is asked, if it has at most this many ...
+  sweep_interval: 10                 # ... every this many seconds
+  known_peers: 32                    # the players met before (joined us, or we them) are asked too: this many are kept
+  extra_addresses: []                # and these addresses (a VPN that gives each computer a single address, a friend's fixed address)
+
+webrtc:
+  # Peer to peer in the browser: two browsers trade an invite and a reply, then talk straight to each other.
+  stun_servers: ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"]  # only tell each browser its address on the internet
+  gather_seconds: 3                  # an invite / reply waits at most this long for this browser's addresses
+  max_candidates: 4                  # addresses in an invite / reply (each makes it a little longer)
+
+reconnect:
+  grace_seconds: 300                 # a direct host keeps the place of a player who lost the connection this long (tools/server.py: --grace)
+  retry_seconds: 2                   # a lost connection is tried again every this many seconds ...
+  give_up_seconds: 330               # ... for this long
+  replay_steps: 2000000              # rebuilding a game after a reload: at most this many simulation steps
+# What a player's ratings (0..99, the team files) add up to: a passer's trust in a receiver, a team's
+# strength in each phase, how often a player draws a flag, a player's skill for a depth-chart group,
+# and who comes in for a tired or missing player. The game, the on-field simulation, career mode and
+# the screens all use these. Every value is read: a missing one or an unknown name is an error.
+# Online opponents need the same file.
+
+receiver_trust:
+  # how much a passer trusts a receiver (route running: does he get to the right spot; hands, also with a defender
+  # on him): (run_route x route + catch x catching + catch_in_traffic x traffic - average) / step - in steps of
+  # `step` points from an average starter (about a TE1): +0.5 is a top wideout, -0.5 a back. The simulation (who
+  # gets the ball, into how tight a window) and the depth chart (who lines up at the first read) use it.
+  route: 0.4
+  catching: 0.35
+  traffic: 0.25
+  average: 71
+  step: 15
+
+units:
+  # a team's strength in each phase (0..99, for the coaches' run / pass choice and the screens): the weighted
+  # average of [group.rating, weight] terms; a term is the average of the group's first `starters` players
+  # (a group nobody plays in: `missing`)
+  missing: 50
+  starters: {QB: 1, RB: 1, WR: 3, OL: 5, DE: 2, DT: 2, LB: 3, CB: 3, S: 2}
+  pass_offense: [[QB.pass_accuracy, 1], [QB.pass_arm_strength, 1], [WR.catch, 1], [WR.run_route, 1], [OL.pass_blocking, 1]]
+  run_offense: [[RB.speed, 1], [RB.break_tackle, 1], [OL.run_blocking, 2]]
+  pass_defense: [[CB.coverage, 2], [S.coverage, 1], [DE.pass_rush, 1]]
+  run_defense: [[DT.run_coverage, 1], [DE.run_coverage, 1], [LB.tackle, 1]]
+
+flags:
+  # how often a player draws a flag (1 = league average): his discipline (discipline_base - discipline / 99 x
+  # discipline_weight: 99 -> 0.45, 70 -> 0.74, 40 -> 1.05) x his aggressiveness (aggressiveness_base +
+  # aggressiveness / 99 x aggressiveness_weight) x `tired` below tired_energy x the head coach's discipline
+  # (coach_base - discipline / 99 x coach_weight: 70 -> 0.9), divided by `average` (an average player: about 1)
+  discipline_base: 1.45
+  discipline_weight: 1
+  aggressiveness_base: 0.85
+  aggressiveness_weight: 0.3
+  tired_energy: 60
+  tired: 1.2
+  coach_base: 1.25
+  coach_weight: 0.5
+  average: 0.66
+
+depth_skill:
+  # how good a player is at what a depth-chart group asks of him (0..99): [rating, weight] per group (the weights
+  # add up to 1); `other` for any other group. Compares a starter with his backup (the depth chart, rotation,
+  # career mode: needs, trades, the draft).
+  QB: [[pass_accuracy, 0.35], [deep_accuracy, 0.1], [pass_arm_strength, 0.2], [pass_read_coverage, 0.2], [vision, 0.15]]
+  RB: [[speed, 0.25], [acceleration, 0.15], [agility, 0.15], [break_tackle, 0.2], [vision, 0.15], [catch, 0.1]]
+  FB: [[speed, 0.25], [acceleration, 0.15], [agility, 0.15], [break_tackle, 0.2], [vision, 0.15], [catch, 0.1]]
+  WR: [[speed, 0.25], [catch, 0.25], [run_route, 0.3], [catch_in_traffic, 0.2]]
+  TE: [[catch, 0.3], [run_route, 0.2], [run_blocking, 0.25], [pass_blocking, 0.1], [speed, 0.15]]
+  OL: [[pass_blocking, 0.5], [run_blocking, 0.5]]
+  DE: [[pass_rush, 0.4], [run_coverage, 0.3], [strength, 0.15], [speed, 0.15]]
+  DT: [[pass_rush, 0.25], [run_coverage, 0.4], [strength, 0.35]]
+  LB: [[tackle, 0.3], [run_coverage, 0.3], [coverage, 0.2], [speed, 0.2]]
+  CB: [[coverage, 0.5], [speed, 0.3], [agility, 0.2]]
+  S: [[coverage, 0.4], [tackle, 0.2], [speed, 0.25], [run_coverage, 0.15]]
+  K: [[kick_power, 0.5], [kick_accuracy, 0.5]]
+  P: [[kick_power, 0.5], [kick_accuracy, 0.5]]
+  LS: [[pass_blocking, 0.6], [strength, 0.4]]
+  other: [[speed, 0.5], [strength, 0.5]]
+
+personnel:
+  # picking the players for a play: the depth chart, but in a rotating group a resting player, or one below
+  # tired_energy, sits if a backup further down has at least fresh_energy (quarterbacks, linemen and specialists
+  # only come off when they are hurt; config/game.yaml has the rotation by series)
+  rotating: [RB, WR, TE, DE, DT, LB, CB, S]
+  fresh_energy: 75
+  tired_energy: 55
+
+fallback:
+  # a group with nobody left: these groups fill in, best fit first (then anyone healthy)
+  QB: []
+  RB: [FB, WR]
+  FB: [RB, TE, LB]
+  WR: [TE, RB, CB]
+  TE: [OL, FB, WR]
+  OL: [DT, TE]
+  DE: [DT, LB]
+  DT: [DE, OL]
+  LB: [S, DE]
+  CB: [S, WR]
+  S: [CB, LB]
+  K: [P]
+  P: [K]
+  LS: [OL, TE]
+  H: [P, QB]
+  KR: [RB, WR, CB]
+  PR: [WR, RB, CB]
+  ST: [LB, S, CB, TE, RB, FB, WR, DE]
+# The on-field simulation: which engine simulates the plays and how it is tuned.
+#
+# engine: the implementation behind sim/FieldSimulation.h (see docs/SIMULATION.md). This build has
+# one, "playsim": every player is simulated on his own (assignment, decisions, movement, contests).
+#
+# Everything below is the playsim engine's tuning: every weight, probability, reaction time and
+# distance its decisions and contests use. Units: yards, seconds, ratings 0..99 (most formulas use
+# rating / 99), probabilities 0..1. The game reads every value: a missing one or an unknown name is
+# an error. Changing a value changes the results - online opponents need the same file (the game
+# compares a fingerprint of it). Where each player lines up and his assignment are in the play files;
+# how the engine carries them out (spots, speeds, steering) is tuned here too.
+
+engine: playsim
+
+# ---- the play as a whole ----
+play:
+  whistle_delay: 1.5                 # a tackle in bounds: seconds until the whistle (getting up from the pile)
+  max_duration: 25                   # a play still going after this many seconds ends where it is
+  spike_time: 0.35                   # the QB spikes the ball / takes a knee this many seconds after the snap
+  kneel_time: 0.8
+
+# ---- every player: physical limits, how often and how fast he thinks ----
+players:
+  # a player's physical limits from his ratings (yards a second, yards a second²): top speed ...
+  speed_base: 6.3                    # ... this plus speed_range x speed / 99 ...
+  speed_range: 3.85
+  accel_base: 3.6                    # ... acceleration this plus accel_range x (acceleration and strength, weighted) / 99 ...
+  accel_acceleration: 0.75
+  accel_strength: 0.25
+  accel_range: 6.4
+  turn_base: 0.45                    # ... and changing direction (agility) this plus turn_agility x agility / 99 of his acceleration
+  turn_agility: 0.75
+  fatigue_base: 0.86                 # a tired player (energy 0) moves at this share of his speed and acceleration ...
+  fatigue_range: 0.14                # ... plus this share x energy / 100
+  # decisions: a player thinks again after think_time_max - think_time_range x rating / 99 seconds, the
+  # rating mixing his football IQ for his job (iq_weight) and his reaction rating
+  think_time_max: 0.32
+  think_time_range: 0.22
+  iq_weight: 0.6
+  reaction_weight: 0.4
+  think_noise_min: 0.85              # ... times a random factor between these two
+  think_noise_max: 1.15
+  familiarity_speedup: 0.35          # a defense that has seen the play recently thinks this much faster (at full familiarity)
+  alert_range: 5                     # within this many yards of the ball carrier everybody thinks at least every alert_time seconds
+  alert_time: 0.07
+  carrier_think_time: 0.24           # the ball carrier: this less up to carrier_think_range for agility and vision
+  carrier_think_range: 0.14
+  react_slowest: 1.35                # a sudden change (the snap, a cut, a throw): the slowest reaction takes this many times the average ...
+  react_range: 0.7                   # ... the quickest this much less
+  leader_from: 55                    # the best leader on the field (leadership above this) speeds up his side's reactions ...
+  leader_effect: 0.12                # ... by this share per 99 points
+  leader_min: -0.04
+  leader_max: 0.06
+  # get-off at the snap: the offense knows the count, the defense reacts to the ball
+  offense_getoff_noise: 0.05
+  offense_getoff: 0.08
+  defense_getoff_min: 0.02
+  defense_getoff_max: 0.08
+  defense_getoff: 0.16
+  # everybody reacts to a turnover (an interception) after min .. max seconds x their reaction, to a catch after 0 .. catch_react
+  turnover_react_min: 0.3
+  turnover_react_max: 0.8
+  catch_react: 0.15
+  stunned_speed: 0.2                 # a stunned player (knocked down, juked, slipped) moves at this share of his speed
+  body_width: 0.75                   # players closer than this (yards) are pushed apart
+  loose_ball_react: 0.1              # the ball comes loose: everybody thinks again within this many seconds
+  default_iq: 50                     # the "football IQ" rating of a player without a job that has one
+
+# ---- today's form ----
+form:
+  momentum_form: 0.06                # a player on a roll (Player::momentum) plays up to this much better ...
+  momentum_full: 5                   # ... with this much momentum (about five catches for 70 yards) ...
+  team_momentum_form: 0.04           # ... and a whole team with the game going its way up to this much
+  # today's form: consistency spreads it (up to form_spread for a player with no consistency)
+  form_spread: 0.07
+  form_min: 0.85
+  form_max: 1.12
+
+# ---- the quarterback's reads: where (and whether) to throw, the window he wants ----
+quarterback:
+  # reading the defense and deciding where (and whether) to throw
+  progression_priority: 0.4          # bonus for the first read over the last when the QB picks the best man
+  progression_late_read: 0.3         # how much more open the last read has to be than the first
+  first_read_bonus: 0.2              # the first read may be a little less open ...
+  first_read_look: 1.7               # ... and the QB looks at him longer before he moves on
+  throw_window: -0.05                # seconds of separation the QB wants before he lets it go (early in the read)
+  deep_window: 0.07                  # ... plus this much per yard beyond 8 yards downfield ...
+  deep_window_base: 0.1              # ... and this much more from 16 yards on (half of it at 12: tight windows are for short throws)
+  depth_value: 0.005                 # how much more he likes a throw per yard downfield (picking the best man)
+  checkdown_value: 0.03              # ... less for a dump-off behind the line or right at it ...
+  checkdown_window: 0.05             # ... which as a read on the progression has to be this much more open
+  # shot plays (deep shots, PlayDef::shotSpot): the deep window shrinks to this share, depth counts
+  # more and he looks at the first read (the big-play route) longer
+  shot_window: 0.4
+  shot_chance: 0.55                  # ... and he throws the big-play route into a window this much tighter
+  shot_depth_value: 0.016
+  shot_first_look: 2.3
+  deep_release: 10                   # yards downfield a receiver gets before a deep ball (18+ yards) goes to him
+  vision_optimism: 0.5               # seconds a passer with no vision at all overrates every window by ...
+  vision_noise: 0.35                 # ... give or take this much (both scaled down by his vision)
+  # a receiver this far from any defender catches the QB's eye outside his reads, if the throw has at
+  # least this much margin, counting the defenders' reaction to the throw
+  wide_open_separation: 8
+  wide_open_margin: 0.2
+  hot_read_window: 0.25              # seconds less separation he wants when he throws hot against a blitz
+  hail_mary_wait: 3.1                # seconds the QB gives his receivers to get downfield on a Hail Mary
+  # trust in a receiver (receiverTrust() in data/Team.h: +0.5 a top wideout, -0.5 a back)
+  trust_window: 0.14                 # seconds of separation one step of trust is worth (tighter throws)
+  trust_value: 0.25                  # ... and how much more the QB likes the throw
+  trust_read_order: 0.6              # places on the read list one step of trust moves a receiver up
+  wr1_read: 0.4                      # ... and a true WR1 (clearly the best receiver on the field) this many places ...
+  wr1_gap: 0.7                       # ... once he is this many steps of trust better than the other receivers (less for a smaller gap)
+  rb_read: 0.85                      # ... and the lead back this many (the outlet he looks to early) ...
+  te_read: -0.25                     # ... the first tight end this many (the second one: TE2_READ)
+  te2_read: -0.5
+  sideline_throw: 0.35               # trailing late: how much more he likes a throw near the sideline (out of bounds stops the clock)
+  fake_time: 0.7                     # play action: seconds he carries out the fake
+  route_ready_time: 1.6              # a receiver is a read once past his first break, or after this many seconds
+  # how much he likes a throw: min(margin, value_margin_cap) x value_margin + depth (depth_value per yard) ...
+  value_margin_cap: 0.6
+  value_margin: 1.5
+  checkdown_depth: 2                 # a throw shorter than this is a check-down
+  sideline_range: 10                 # trailing late: a catch within this many yards of the sideline (full bonus sideline_span yards closer)
+  sideline_span: 7
+  hail_mary_pressure: 2.5            # Hail Mary: he throws early when a rusher is this close (and he has held it hail_mary_min seconds)
+  hail_mary_min: 1.8
+  screen_pressure: 2.2               # screens: the rush this close (once the screen man is out screen_wait seconds): throw it now
+  screen_wait: 0.2
+  screen_margin: -0.2                # ... if the screen man is at least this open (else look elsewhere)
+  # a man all alone downfield: no defender within wide_open_separation, the throw at least wide_open_margin
+  # open, deeper than wide_open_depth and quicker than wide_open_flight seconds. From wide_open_look_from
+  # seconds in the pocket he spots him with wide_open_look_base + wide_open_look_vision x vision / 99
+  wide_open_depth: 3
+  wide_open_flight: 1.6
+  wide_open_look_from: 0.3
+  wide_open_look_base: 0.2
+  wide_open_look_vision: 0.4
+  # hot throw: a free rusher (as he feels it) within hot_throw_range coming faster than hot_throw_speed:
+  # with hot_throw_base + hot_throw_awareness x awareness / 99 he gets rid of it to a man at least hot_throw_margin open
+  hot_throw_range: 4
+  hot_throw_speed: 4
+  hot_throw_base: 0.15
+  hot_throw_awareness: 0.4
+  hot_throw_margin: -0.2
+  # the window he wants shrinks by window_shrink a second in the pocket, by pressure_window with a rusher
+  # within pressure_window_range, and by boldness_window x (aggressiveness / 99 - boldness_mean)
+  window_shrink: 0.12
+  pressure_window_range: 2.5
+  pressure_window: 0.15
+  boldness_mean: 0.4
+  boldness_window: 0.25
+  deep_from: 8                       # deep_window counts from this many yards downfield, deep_window_base fills up over the next deep_base_span
+  deep_base_span: 8
+  read_time: 0.6                     # seconds he looks at a read (less read_time_skill x reading coverage / 99)
+  read_time_skill: 0.3
+
+# ---- the quarterback in the pocket: the drop, reading the blitz, pressure, scrambles ----
+pocket:
+  set_time: 0.7                      # seconds from the snap until the passer is set: this ...
+  drop_step: 0.17                    # ... plus this per yard of drop (a five-step drop: about 1.55 s)
+  # a blitz he reads: from hot_read_from seconds, a free rusher within hot_read_range yards coming at him
+  # faster than hot_read_speed is spotted with hot_read_base + hot_read_skill x reading coverage / 99
+  hot_read_from: 0.2
+  hot_read_range: 9
+  hot_read_speed: 2
+  hot_read_base: 0.2
+  hot_read_skill: 0.6
+  hot_drop: 1                        # ... and he cuts his drop to this many yards of footwork
+  # the drop is over when he is at his spot (within drop_reached) after his footwork, or after
+  # drop_timeout_base + drop_timeout_per_yard x (drop + rollout) seconds anyway
+  drop_reached: 0.7
+  drop_timeout_base: 0.5
+  drop_timeout_per_yard: 0.25
+  pressure_blindness: 1.4            # yards the rush seems farther away to a QB with no awareness
+  pocket_move_range: 3.5             # the rush (as he feels it) this close: he steps away from it in the pocket
+  pocket_hold: 2.2                   # seconds in the pocket before he takes what is there ...
+  clean_pocket_hold: 3.2             # ... or this long when no rusher is near him
+  clean_pocket: 4.5                  # yards to the nearest free rusher (as he feels it) for a clean pocket
+  # under pressure or late in the play
+  hurried_range: 1.7                 # the rush (as he feels it) this close: he is hurried
+  forced_margin: -0.1                # the least open a man may be for a throw under pressure
+  one_more_look: 2                   # about to check it down (a receiver this far past the line or less): one more look downfield ...
+  wide_open_value: 1                 # ... a man found wide open on it counts this much (against hurried_value)
+  hurried_value: -0.05               # hurried: he throws to his best man if he likes the throw at least this much
+  pressure_throw: 0.05               # about to go down: he throws to his best man only if he likes the throw this much (else away)
+  escape_rush: 2.6                   # yards (as he feels it): a rusher this close and room to run -> he may escape
+  escape_lane: 4.5                   # escaping the rush: no free defender in the lane ahead this far ...
+  escape_base: 0.1                   # ... chance escape_base + escape_scramble x scramble / 99
+  escape_scramble: 0.75
+  scramble_look: 1.9                 # seconds in the pocket before a mobile QB thinks about running
+  scramble_willingness: 0.55         # how readily a QB with nobody open takes off (x his scramble rating)
+  takeoff_value: 0.15                # nobody open (no throw he likes this much) and room (takeoff_lane yards): a mobile QB takes off
+  takeoff_lane: 5.5
+  takeoff_speed: 0.3                 # ... chance scramble x scramble_willingness + speed x takeoff_speed - takeoff_threshold
+  takeoff_threshold: 0.32
+  give_up_time: 3.6                  # seconds in the pocket after which he gets rid of it
+  sack_range: 2                      # the rush this close: he senses the sack with sack_sense_base + sack_sense_awareness x awareness / 99
+  sack_sense_base: 0.15
+  sack_sense_awareness: 0.5
+  max_hold: 6                        # seconds after the snap he throws it away at the latest
+  # a scramble: the defense reacts within its reaction time (a spy at once: spy_react seconds)
+  spy_react: 0.05
+  # throwing on the run: while still throw_behind_line yards behind the line, from scramble_throw_after seconds into
+  # the scramble, to a man at least run_throw_depth downfield and open by run_throw_margin - run_throw_vision x vision / 99
+  # (he misjudges each window by up to run_throw_noise x (1 - vision))
+  throw_behind_line: 0.3
+  scramble_throw_after: 0.45
+  run_throw_depth: 3
+  run_throw_noise: 0.35
+  run_throw_margin: 0.35
+  run_throw_vision: 0.15
+  # a scrambling QB more than slide_from yards past the line slides when a defender is this close (less aggressive ones more often)
+  slide_from: 2
+  slide_pressure: 3
+  slide_base: 0.25
+  slide_cautious: 0.4
+  # an open lane (to escape or take off): no free defender less than lane_behind behind him, in a cone that
+  # widens by lane_spread per yard ahead from lane_width
+  lane_behind: 0.5
+  lane_spread: 1.5
+  lane_width: 1
+  deep_route_depth: 18               # a read this deep (yards past the line where he will catch it) waits until the receiver is past deep_release
+
+# ---- the throw: speed, range, accuracy, batted balls ----
+throwing:
+  placement: 0.9                     # yards a perfectly accurate passer leads his man away from the closest defender ...
+  placement_range: 4                 # ... if one is this close to the catch point
+  bullet_range: 16                   # throws up to this long can be thrown on a line ...
+  bullet_margin: 0.45                # ... when the window for a touch pass is smaller than this
+  bullet_speed: 1.3                  # a bullet is this much faster ...
+  bullet_batted: 1.8                 # ... more often batted at the line ...
+  bullet_catch: 0.9                  # ... and harder to catch (x this, up to 1 for the surest hands)
+  deep_throw_from: 12                # beyond this many yards deep accuracy takes over from accuracy ...
+  deep_throw_span: 10                # ... completely this much farther
+  deep_error: 0.5                    # deep balls are this much less accurate on top of their length
+  error_scale: 0.46                  # throw error scale ...
+  error_base: 0.1                    # ... on a flip at no distance (short throws are far more accurate) ...
+  error_distance: 8                  # ... growing by the base value every this many yards
+  batted_ball_scale: 0.7             # linemen batting balls at the line
+  # arm strength: a touch pass travels arm_speed_base + arm_speed_range x arm strength / 99 yards a second ...
+  arm_speed_base: 15
+  arm_speed_range: 11
+  # ... and he can throw it range_base + range_arm x arm strength / 99 yards
+  range_base: 35
+  range_arm: 35
+  # a gadget passer (not a quarterback) throws with gadget_base + gadget_scale x his rating
+  gadget_base: 46
+  gadget_scale: 0.4
+  # how far ahead a passer trusts the route (instead of what he sees): vision_base + vision x vision / 99
+  vision_base: 0.3
+  vision: 0.7
+  release_time: 0.1                  # seconds from the decision to the ball leaving his hand
+  defender_extra_time: 0.15          # a defender needs this long on top of running to the catch point to get there
+  familiarity_window: 0.25           # a defense that knows the play (full familiarity) closes windows this many seconds faster
+  placement_look_ahead: 0.5          # placement: the closest defender where he will be after this share of the flight
+  # the error of a throw: error_scale x (error_accuracy_base + error_accuracy x (1 - accuracy)) x (error_base + yards / error_distance)
+  error_accuracy_base: 0.55
+  error_accuracy: 1.0
+  on_the_move_speed: 3.5             # throwing on the move (faster than this, or after a scramble): the error x on_the_move_error
+  on_the_move_error: 1.3
+  pressure_range: 2                  # a free rusher this close: the error x (1 + pressure_error x (pressure_composure - composure))
+  pressure_error: 0.8
+  pressure_composure: 1.1
+  beyond_arm: 6                      # beyond his range: +100% error per this many yards
+  hail_mary_error: 0.55              # a Hail Mary is lofted to a spot: this share of the error
+  height_error_noise: 0.35           # the error we cannot see from above (height): x a random factor around 1 give or take this
+  # linemen batting passes: a rusher between lane_from and lane_to yards in front of the passer and
+  # within lane_width of the ball's path, on throws shorter than batted_range
+  batted_range: 30
+  lane_from: 0.3
+  lane_to: 3.5
+  lane_width: 1.3
+  batted_jumping_base: 0.5           # chance: batted_ball_scale x (batted_jumping_base + batted_jumping x jumping / 99) ...
+  batted_jumping: 0.6
+  batted_height_from: 75             # ... + batted_height per inch taller than this ...
+  batted_height: 0.08
+  batted_center: 1.3                 # ... x (batted_center - distance from the lane / lane_width) ...
+  batted_engaged: 0.8                # ... x this for a blocked rusher, batted_free for a free one ...
+  batted_free: 1.2
+  batted_distance: 40                # ... x (1 - throw length / this)
+  batted_max: 0.3
+  min_flight: 0.25                   # seconds a pass is in the air at least
+  on_the_move_clears: 3              # a passer moving faster than this (yards a second) throws over the linemen (no batted balls)
+  sideline_margin: 1                 # a throw is led to at least this far inside the sidelines ...
+  max_lead_x: 118                    # ... and no deeper than this (sim x; the end line is at 120)
+  max_margin: 9                      # the margin of a throw no defender can get to (seconds)
+  hail_mary_end_zone: 4              # a Hail Mary goes this many yards into the end zone if he can reach it
+  batted_pop_back: -1.5              # a batted ball comes down between this (behind) ...
+  batted_pop_ahead: 3                # ... and this many yards past the rusher who batted it ...
+  batted_pop_side: 2.5               # ... and up to this far to either side of him
+  # the arc of a pass (peak height in yards)
+  bullet_peak_base: 0.3              # a bullet: this plus bullet_peak_per_yard x its length ...
+  bullet_peak_per_yard: 0.035
+  touch_peak_base: 0.6               # ... a touch pass: this plus touch_peak_per_yard x its length
+  touch_peak_per_yard: 0.09
+  batted_flight: 0.55                # a batted ball is in the air this many seconds ...
+  batted_peak: 1.2                   # ... and goes this high
+  throw_away_depth: 6                # a throwaway lands this many yards past the line ...
+  throw_away_out: 3                  # ... this far beyond the nearer sideline ...
+  throw_away_peak: 1.5               # ... with this peak height
+
+# ---- the catch point: reach, the contest, interceptions, drops ----
+catching:
+  int_placement: 0.31                # a contested ball is picked off this often (x) from a perfectly accurate passer ...
+  int_inaccuracy: 2.1                # ... plus this much per point of inaccuracy (an 80 passer: 0.67)
+  tip_interception: 0.12             # a ball off target that the receiver gets a hand on pops up to a defender
+  catchable_error: 2.0               # a throw this far off target is still fully catchable ...
+  uncatchable_span: 3.0              # ... and this much further it is uncatchable
+  closing_time: 0.1                  # seconds a defender keeps closing while the receiver secures the ball
+  # a defender plays the ball only if he is right there: his distance to the catch point, less his
+  # reach, at most CONTEST_GAP (the closer, the more he affects it) - and never from farther than his
+  # reach plus CONTEST_LIMIT, however fast he comes
+  contest_gap: 2.0
+  contest_limit: 1.2
+  ball_play_scale: 2.75              # defenders' chance to get a hand on a contested ball
+  defender_ahead: 0.55               # ... more when he is in front of the receiver, less trailing (-1 .. 1 times this)
+  contact: 0.7                       # a defender on the catch point knocks this share of catches loose (less for sure hands in traffic)
+  # reach at the catch point (yards): reach_base + reach_jumping x jumping / 99 + reach_height per inch above reach_height_from
+  reach_base: 1.5
+  reach_jumping: 0.4
+  reach_height_from: 72
+  reach_height: 0.03
+  reach_standard: 1.7                # gaps are measured from a player with this reach
+  closing_share: 0.8                 # a defender's closing counts for at most this share of his distance
+  receiver_range: 1.8                # a receiver with a gap up to this gets to the ball
+  # a receiver at the ball catches it with hands_base + hands x catching / 99 ...
+  hands_base: 0.86
+  hands: 0.13
+  gap_full: 0.8                      # ... less when he has to reach for it (gap beyond gap_full, none at gap_full + gap_span)
+  gap_span: 1.6
+  contest_full: 0.2                  # a defender this close (gap) is right on the catch point
+  ahead_span: 1.2                    # who is in front: the difference of the gaps over this many yards
+  # a defender's ball skills: coverage, hands and jumping, weighted
+  ball_skill_coverage: 0.5
+  ball_skill_hands: 0.25
+  ball_skill_jumping: 0.25
+  # his chance to get a hand on it: ball_play_scale x contest x (ball_play_base + ball_play_skill x ball skills) x ...
+  ball_play_base: 0.16
+  ball_play_skill: 0.42
+  traffic_base: 1.15                 # ... x (traffic_base - traffic x the receiver's catching in traffic)
+  traffic: 0.3
+  alone_base: 0.45                   # a ball with no receiver there: at least contest x (alone_base + alone_skill x ball skills)
+  alone_skill: 0.4
+  ball_play_max: 0.92
+  # a hand on the ball: intercepted with (int_base + int_hands x hands) x (int_aggressiveness_base + int_aggressiveness x aggressiveness) ...
+  int_base: 0.1
+  int_hands: 0.34
+  int_aggressiveness_base: 0.85
+  int_aggressiveness: 0.3
+  int_ahead: 0.3                     # ... x int_ahead_bonus when he is in front of the receiver (by more than this)
+  int_ahead_bonus: 1.45
+  int_alone: 1.6                     # ... x this with no receiver there
+  int_hail_mary: 0.45                # ... a jump ball in a crowd: x this (more batted down than caught)
+  int_behind_line: 0.35              # ... a screen behind the line: x this (he hits the receiver, rarely picks it)
+  int_max: 0.85
+  contact_traffic: 0.28              # a receiver who catches in traffic loses this much less to contact (x catching in traffic)
+  catch_momentum: 0.45               # securing the catch: he keeps this share of his speed
+  # a ball tipped at the line: the closest defender within batted_pick_range picks it off with batted_pick_base + batted_pick_hands x hands
+  batted_pick_range: 2.2
+  batted_pick_base: 0.1
+  batted_pick_hands: 0.12
+  # tip drill: a catchable ball (> tip_catchable) off target (> tip_error x catchable_error) that he gets a hand on
+  tip_catchable: 0.2
+  tip_error: 0.5
+  tip_hands_base: 0.5                # chance: tip_interception x (tip_hands_base + hands) x (1 - gap / contest_gap + tip_gap_bonus)
+  tip_gap_bonus: 0.3
+  closing_min_distance: 0.3          # a defender closer than this to the ball gets no closing bonus
+  drop_gap: 0.7                      # a missed catch counts as a drop when the receiver got this close to the ball ...
+  drop_catchable: 0.8                # ... and the throw was at least this catchable
+  behind_line: 1                     # a ball caught less than this far past the line is behind the line (int_behind_line)
+
+# ---- receivers running their routes ----
+routes:
+  drift: 1.6                         # yards a receiver with no route running drifts off his breaks
+  # route running: a receiver starts his cut route_rounding x (1 - route running / 99) + 1 yards before the break
+  rounding: 1.5
+  break_slow_range: 2.5              # into a break (this close to it) he slows to break_speed_base + break_speed_route x route running + break_speed_agility x agility (/ 99)
+  break_speed_base: 0.55
+  break_speed_route: 0.25
+  break_speed_agility: 0.15
+  # at a break his man reacts late: the receiver's edge (route running and agility against coverage and reaction, weighted)
+  edge_route: 0.65
+  edge_agility: 0.35
+  edge_coverage: 0.5
+  edge_reaction: 0.5
+  edge_delay: 0.6                    # ... delays the defender's next decision by edge x this many seconds
+  sit_drift_range: 3                 # settled in a hole: a defender this close makes him drift sit_drift yards away
+  sit_drift: 1.5
+  ball_in_air_speed: 0.7             # a receiver the ball is not for slows to this share once it is thrown
+  drift_lateral: 0.7                 # ... sideways the drift is this share of it
+  min_leg: 1                         # a route point closer than this many yards to the one before is skipped
+  route_speed: 0.9                   # a route is run under control: this share of top speed (less into a break, see above)
+  end_line_arrive: 0.1               # a route point within this many yards of the deepest spot (the end line) is run to and stopped at
+  sit_speed: 0.6                     # a sit route: he settles into the hole at this share of top speed
+  run_on: 8                          # past the last point of a route that keeps going he aims this many yards further on
+  meet_min_time: 0.05                # going to meet the ball: at least this many seconds of flight left ...
+  meet_min_speed: 0.35               # ... and at least this share of top speed
+
+# ---- pass coverage: man, zone, deep, breaking on the ball ----
+coverage:
+  # man coverage: the cushion he gives his man at the snap, how fast it shrinks (yards a second), how
+  # tight it gets and how many seconds he aims ahead of his man (more with coverage skill and familiarity)
+  man_cushion: 1.5
+  man_cushion_shrink: 0.8
+  man_cushion_min: 0.2
+  man_lead: 0.3
+  # zone: the man in his zone he sits this far in front of (toward the passer), aiming this many
+  # seconds ahead of him, and follows out to this many times the zone's radius
+  zone_sit: 0.6
+  zone_lead: 0.7
+  zone_follow: 1.3
+  deep_cushion: 4                    # deep zone: yards he stays deeper than the deepest receiver in his band
+  zone_match_time: 1.6               # seconds into the play a zone defender with nobody in his zone looks for an open man ...
+  zone_match_range: 16               # ... this far away ...
+  zone_match_open: 5                 # ... with no other defender this close to him
+  cut_lag: 0.2                       # a defender keeps going this long when his man breaks (average reaction)
+  break_time: 0.1                    # a defender keeps going his way this long before he reacts to a throw
+  deep_read_time: 1.2                # a deep defender with no receiver in his band backpedals slowly this long
+  # defenders break on a thrown ball after their reaction time x this (a man defender trails his receiver
+  # with his back to the ball, zone and deep defenders face the quarterback), less for a familiar play
+  man_ball_react: 1.15
+  zone_ball_react: 0.8
+  familiar_ball_react: 0.3
+  green_dog_time: 0.8                # man coverage: his man stays in to block - after this many seconds a linebacker blitzes
+  man_lead_coverage: 0.25            # a man defender aims man_lead + this x coverage / 99 + man_lead_familiarity x familiarity seconds ahead
+  man_lead_familiarity: 0.3
+  man_leverage: 0.4                  # ... and this many yards inside of him
+  zone_radius: 8                     # a zone defender takes the most dangerous receiver this close to his spot
+  zone_back_depth: 10                # an underneath zone (shallower than this) rallies to a back as if he were zone_back_rally yards closer
+  zone_back_rally: 3
+  zone_drop_time: 1.2                # zone defenders drop at zone_drop_speed of their speed for this many seconds
+  zone_drop_speed: 0.85
+  deep_min_depth: 4                  # a deep defender watches receivers more than this many yards past the line
+  deep_help_range: 6                 # nobody in his band: he helps over the top of an open man within zone_match_range + this ...
+  deep_help_depth: 10                # ... deeper than this ...
+  deep_help_over: 3                  # ... staying this many yards deeper
+  deep_follow: 0.75                  # a deep defender moves this share of the way across to his receiver
+  ball_reach_extra: 0.9              # a pass in the air: he goes for the catch point if he gets there at most this many seconds after the ball
+  robber_depth: 5                    # a man defender whose label matched nobody becomes a robber at least this many yards deep
+  man_no_route_depth: 5              # a man defender whose man stays in to block waits this deep (between him and the ball)
+  open_past_line: 1                  # a free receiver less than this far past the line is nobody's to pick up yet
+  deep_read_speed: 0.5               # a deep defender taking his read steps: share of top speed
+  rusher_ball_speed: 0.5             # rushers turn and follow a pass at this share of top speed
+  # the QB spy
+  spy_attack_line: 0.5               # the spy attacks once the QB runs or comes within this far of the line ...
+  spy_depth: 4                       # ... until then he mirrors him from this many yards off the ball ...
+  spy_creep_max: 1.5                 # ... creeping up to this much further ...
+  spy_creep_rate: 0.5                # ... at this many yards a second ...
+  spy_lead: 0.3                      # ... leading the QB's sideways movement by this many seconds ...
+  spy_speed: 0.85                    # ... at this share of top speed
+  contain_from: 2                    # a rushing end this far past the passer keeps contain ...
+  contain_width: 1.5                 # ... aiming this far outside him
+
+# ---- blocks: the leverage contest once a blocker has his man ----
+blocking:
+  help_close: 1.6                    # pass protection: a helper this close to a rusher on a block (see block_assignments) cuts the block's drift by
+  double_team: 0.6
+  run_surge: 0.6                     # run blocks: the blockers' edge in the first moments (leverage drift per second)
+  run_surge_time: 1.2                # ... and how long it lasts
+  # outside runs (stretch, toss, a bounce): blocks in space do not hold for long (leverage drift per second)
+  edge_leverage: 1.5                 # a defender with outside leverage on his blocker
+  lb_scrape: 1.5                     # a linebacker flowing over the top
+  off_block_to_tackle: 1.5           # a blocked defender the runner passes within reach
+  kickoff_block_edge: 0.6            # kickoff return blockers are set when the coverage arrives
+  # blocks: a blocker this close to the man he wants locks up with him; the contest is a random walk on
+  # "leverage" (> shed_leverage: the defender sheds the block, < blocker_wins: the blocker has won it)
+  engage_range: 1.25
+  start_noise: 0.2
+  shed_leverage: 1
+  blocker_wins: -1.6
+  shed_cooldown: 1.2                 # a blocker who got shed can't take the same man again for this many seconds
+  # each side's skill: the blocking (or rush / run defense) rating x block_rating + strength x block_strength,
+  # plus mass_weight per pound above mass_reference
+  block_rating: 0.75
+  block_strength: 0.25
+  mass_reference: 250
+  mass_weight: 0.05
+  # the drift of leverage per second: the skill difference / protection_scale - protection_hold (pass
+  # protection: set up, it holds a little longer) or / run_scale (run blocks), plus random steps
+  protection_scale: 60
+  protection_hold: 0.04
+  run_scale: 30
+  noise_protect: 0.58
+  noise_run: 0.65
+  draw_time: 1.2                     # draws: for this long after the handoff the blockers ride the rushers upfield (drift - draw_ride)
+  draw_ride: 0.7
+  # outside runs (a hole outside_hole yards or more off the ball, or a runner outside_bounce yards wide):
+  # the drift for a defender with outside leverage x flow (the runner's speed across / flow_speed, x
+  # flow_base + flow_skill x run coverage), once the runner moves across faster than flow_min_speed
+  outside_hole: 4
+  outside_bounce: 3
+  flow_speed: 5
+  flow_base: 0.6
+  flow_skill: 0.6
+  flow_min_speed: 2
+  edge_range: 7                      # ... the runner within this many yards and not more than edge_past yards past him
+  edge_past: 2.5
+  scrape_range: 9                    # ... a linebacker within this many yards scrapes over the top (lb_scrape)
+  off_block_reach: 2.2               # ... the runner within this: the defender comes off the block (off_block_to_tackle) ...
+  off_block_behind: 1                # ... unless the runner is more than this far behind him
+  kickoff_block_time: 1              # kickoffs: a return blocker has the edge (kickoff_block_edge) for this many seconds of the block
+  # how a block moves: the defender pushes toward his target with strength + skill x (1 + win_push x
+  # leverage when he is winning), the blocker toward the passer / runner x (1 + hold_push x leverage he wins by)
+  win_push: 0.8
+  hold_push: 0.5
+  run_push_forward: 0.6              # (a run block with nobody carrying the ball yet: straight through his man plus this much downfield)
+  block_speed: 2.4                   # yards a second at full push
+  slip: 1.2                          # a winning defender slips around the block this fast (x leverage)
+  contact_distance: 0.9              # the blocker stays this far from his man (also where pass blockers and helpers set up, see block_assignments) ...
+  follow_rate: 8                     # ... following him at this rate (share of the gap a second)
+  max_block_time: 4.5                # a block ends after this many seconds ...
+  throw_release: 0.4                 # ... this long after the pass is thrown ...
+  kick_release: 0.3                  # ... and the punt / field-goal protection this long after the kick
+  pancake_stun: 0.5                  # a run blocker who wins the block puts his man on the ground for this many seconds
+
+# ---- blocking assignments: who blocks whom and where blockers set up ----
+block_assignments:
+  # pass protection: blockers are matched with rushers, cheapest pairing first. A back's cost:
+  # protection_back_cost + protection_back_threat x the rusher's distance to the passer + protection_back_side x the gap across
+  protection_back_cost: 5
+  protection_back_threat: 0.4
+  protection_back_side: 0.4
+  protection_line_distance: 0.5      # a lineman: the gap across + this x the distance + protection_line_threat x the distance to the passer
+  protection_line_threat: 0.25
+  protection_max_cost: 16
+  protection_rush_depth: 7           # a rusher more than this many yards past the line is not a protection matter
+  help_reach: 3.5                    # a free blocker helps on a rusher on a block this far to his side ...
+  help_range_extra: 1.5              # ... within help_reach + this
+  help_side_danger: 4                # ... the most dangerous rusher: pass rush less this per yard to the side
+  # where a pass blocker sets up
+  default_protect_depth: 5           # nobody to protect (no passer / kicker): the pocket is this many yards behind the line
+  fake_time: 0.8                     # play action: the back the QB fakes to sells it for this many seconds ...
+  fake_depth: 3                      # ... toward the spot this many yards behind the line ...
+  fake_side: 0.8                     # ... and this far to the side of the ball
+  rusher_look_ahead: 0.2             # a pass blocker steps into his rusher's path to the passer from where he will be in this many seconds ...
+  min_lane: 0.1                      # (a rusher closer than this to the passer: the blocker steps straight back)
+  lane_short: 1                      # ... at least blocking.contact_distance from the rusher and at most this short of the passer
+  line_limit: 0.3                    # pass blockers stay this far behind the line
+  help_side: 0.6                     # a helper on a double team stands at the rusher's hip, this far to his side
+  back_set_ahead: 1                  # a back with nobody to block waits this far in front of the passer ...
+  back_set_side: 1.2                 # ... and this far to his side
+  sink_base: 1                       # a free lineman sinks back to this many yards behind the line ...
+  sink_time: 2                       # ... plus sink_rate yards a second for the first sink_time seconds ...
+  sink_rate: 0.5
+  sink_in_front: 1                   # ... at least this far in front of the passer ...
+  sink_stay: 0.7                     # ... sideways at this share of where he lined up plus sink_toward of where the passer is
+  sink_toward: 0.3
+  # run blocking: who a blocker takes (the lowest score: distance + side x run_block_side, + claimed_cost if a teammate has him)
+  run_block_range: 6
+  wr_block_range: 15
+  run_block_side: 0.6
+  run_block_behind: 1.5              # a defender this far behind the blocker is not his
+  claimed_cost: 5
+  run_contact_distance: 0.8          # a run, lead or open-field blocker aims this far from his man (on the side of the hole / the ball carrier)
+  drive_side: 0.6                    # run blockers drive their man away from the hole: this much sideways per yard forward
+  stalk_speed: 0.8                   # receivers stalk-block at this share of top speed
+  climb: 3                           # a run blocker with nobody to block climbs this many yards
+  screen_block_range: 10             # screens: defenders within this of the screen spot (score: distance + screen_block_distance x distance to him)
+  screen_block_distance: 0.4
+  screen_ahead: 2.5                  # ... the screen spot: this far past the screen man's last route point ...
+  screen_inside: 0.15                # ... moved this share of the way toward the ball
+  lead_range: 7                      # lead blocker: defenders within this of the hole, linebackers lead_linebacker yards cheaper
+  lead_claimed: 4
+  lead_linebacker: 1.5
+  lead_hole_depth: 0.5               # ... the hole is this far past the line ...
+  lead_through: 2                    # ... with nobody to block he goes this many yards through it
+  # blocking for the ball carrier: defenders within carrier_block_range (special teams: return_block_range) of him;
+  # score: distance + carrier_block_threat x his distance to the runner (+ lead_claimed if taken), at most carrier_block_max (return_block_max)
+  carrier_block_range: 14
+  return_block_range: 30
+  carrier_block_threat: 0.7
+  carrier_block_max: 16
+  return_block_max: 35
+  carrier_block_behind: 1.5          # a defender this far behind the runner can't hurt him
+  block_lead_max: 0.6                # he aims where his man will be in up to this many seconds
+  escort_ahead: 4                    # with nobody to block he runs this far in front of the ball carrier ...
+  escort_spread: 0.3                 # ... keeping this share of his distance to the side ...
+  escort_speed: 0.8                  # ... at this share of top speed
+
+# ---- the ball carrier ----
+running:
+  rating_mean: 82                    # a ball carrier's running ratings count from this ...
+  rating_spread: 0.5                 # ... with this much of the distance to it
+  # the handoff: at the mesh time when the back is within mesh_range of the QB, or mesh_timeout seconds later anyway
+  mesh_range: 1.6
+  mesh_timeout: 1.2
+  # the ball carrier picks the best of 17 directions: forward progress (power backs forward_power) against
+  # the defenders close to his path (threat_range, where they will be in threat_look_ahead seconds;
+  # blocked ones x blocked_threat; power backs x power_threat, finesse backs x finesse_threat)
+  forward: 1.2
+  forward_power: 1.4
+  power_threat: 0.75
+  finesse_threat: 1.2
+  threat_range: 11
+  threat_look_ahead: 0.25
+  blocked_threat: 0.3
+  threat_radius: 2.5                 # a defender within threat_radius + threat_radius_growth x look-ahead distance of a point on the path costs ...
+  threat_radius_growth: 0.35
+  threat_weight: 0.18                # ... threat_weight x (radius - distance)² / (look-ahead distance x look_scale)
+  hole_time: 1.3                     # the called hole: hit it downhill during the first seconds after the handoff, behind the line ...
+  hole_depth: 2
+  hole_closed: 2.5                   # ... unless a free defender is this close to it ...
+  hole_pull: 2.5                     # ... worth this much
+  out_of_bounds: 2.5                 # cost of a path that leaves the field
+  sideline_near: 8                   # trailing late: within this of the sideline he runs out (worth sideline_out) ...
+  sideline_out: 1.5
+  sideline_pull: 2                   # ... and heads for it (worth up to this from sideline_range yards closer)
+  sideline_range: 20
+  stay_in_bounds: 6                  # protecting a lead: cost of leaving the field ...
+  near_sideline: 1.5                 # ... and of a path within sideline_margin yards of the sideline
+  sideline_margin: 3
+  vision_noise: 0.25                 # a runner with no vision misjudges each direction by this much
+  # pitches: thrown at pitch_speed yards a second (at least pitch_min_flight seconds), caught within pitch_catch_range with
+  # pitch_catch_base + pitch_catch_hands x catching / 99; a pitch more than pitch_late seconds late is not thrown
+  pitch_speed: 13
+  pitch_min_flight: 0.25
+  pitch_catch_range: 1.7
+  pitch_catch_base: 0.95
+  pitch_catch_hands: 0.04
+  pitch_late: 1.2
+  pitch_range: 9                     # he pitches once the man is this close (and not ahead of the ball)
+  carrier_speed: 0.95                # a ball carrier runs at this share of his top speed (rated from his compressed carrier ratings)
+  cut_speed: 3                       # faster than this, a cut with the ball costs speed: x (1 - (1 - cos angle) x cut_cost x (cut_agility - agility / 99))
+  cut_cost: 0.5
+  cut_agility: 1.3
+  cut_min_distance: 0.1              # the cut costs speed only with his target more than this many yards away
+  hole_point_depth: 1.5              # the called hole is this many yards past the line
+  fan_angle: 1.75                    # he looks at 17 directions, from this angle (radians) left of straight ahead to as far right ...
+  target_distance: 5                 # ... and runs for the point this many yards along the best one
+  look_points: [1.5, 3.5, 6]         # the points along each direction he checks for threats (yards ahead)
+  look_scale: 0.5                    # (see threat_weight)
+  sideline_look: 3                   # the sidelines in his choice: the point this many yards along a direction ...
+  outside_margin: 1                  # ... counts as out of bounds within this many yards of a sideline
+  # the mesh point of a handoff
+  shotgun_mesh: 6                    # from the shotgun: this many yards behind the line, on the ball ...
+  under_center_mesh: 3               # ... under center: this many ...
+  mesh_side: 0.7                     # ... this far to the side of the hole (where the back takes the ball from the QB too)
+
+# ---- the defense reading runs, play action and the option ----
+run_defense:
+  # the defense reads a run: after run_read_base + run_read_skill x (1 - run coverage) seconds (+ noise)
+  run_read_base: 0.3
+  run_read_skill: 0.8
+  run_read_noise: 0.1
+  run_read_db: 0.4                   # corners and safeties later
+  shotgun_read: 0.7                  # a run from the shotgun looks like a pass: this share of the mesh time later
+  familiar_read: 0.6                 # a play seen recently: up to this much sooner
+  run_read_min: 0.15
+  # play action: linebackers and safeties bite (aggressive ones, poor cover men)
+  bite_base: 0.2
+  bite_aggressiveness: 0.45
+  bite_coverage: 0.25
+  bite_time: 0.9                     # ... and chase the fake this long (plus up to bite_time_extra)
+  bite_time_extra: 0.5
+  # read option: the unblocked end crashes on the back (aggressive ones more often) or stays home
+  read_crash: 0.3
+  read_crash_aggressiveness: 0.35
+  handoff_react: 1.5                 # the defense recognizes the handoff within its reaction time x this + handoff_react_extra
+  handoff_react_extra: 0.05
+  draw_fooled: 0.25                  # ... plus this many seconds on a draw (they were dropping into coverage)
+  # read option: the man he reads crashes when he is within option_crash_range of the back or closes on him faster
+  # than option_crash_speed; the QB reads it right with option_read_base + option_read_skill x reading coverage / 99
+  option_crash_range: 3.5
+  option_crash_speed: 2.5
+  option_read_base: 0.62
+  option_read_skill: 0.33
+  keeper_react: 1.8                  # the defense recognizes the keeper within its reaction time x this + keeper_react_extra
+  keeper_react_extra: 0.1
+  pitch_react: 1.2                   # the defense recognizes the new runner within its reaction time x this
+  read_man_side: 0.5                 # read option: the read man is the outermost man on the line at least this far to the back side ...
+  read_man_depth: 2                  # ... less than this many yards off the line ...
+  read_man_width: 9                  # ... and less than this far outside the ball
+  option_edge_depth: 1               # at the mesh the QB reads the free defender closest to the spot this far past the line ...
+  option_edge_width: 4.5             # ... and this far to the back side ...
+  option_read_range: 6               # ... within this many yards of it (and on the back side of the ball by option_back_side)
+  option_back_side: 0.5
+  option_keeper_hole: 7              # a QB who keeps it runs for the hole this far to the back side
+
+# ---- tackles, fumbles, pursuit, loose balls ----
+tackling:
+  dive_reach: 0.15                   # yards beyond his reach a free defender can dive at a runner getting away
+  # tackling: a ball carrier makes a free tackler miss without contact (juke against tackling and
+  # reaction), or runs through the hit (break tackle and strength against tackling and strength)
+  juke_scale: 0.45
+  fumble_base: 0.011                 # fumble chance per tackle when strip force and ball security are even ...
+  fumble_spread: 2.6                 # ... times e^(this x (force - security))
+  loose_ball_range: 12               # players this close to a loose ball go for it
+  # pursuit: an angle to cut the runner off (looking at most pursuit_max_time seconds ahead); from more than
+  # pursuit_far yards a poor tackler / run defender takes a worse angle (pursuit_angle_base + pursuit_angle_skill x rating / 99)
+  pursuit_max_time: 3
+  pursuit_far: 8
+  pursuit_angle_base: 0.85
+  pursuit_angle_skill: 0.15
+  # tackles: a defender within tackle_range of the ball carrier tries; he has to be within his reach:
+  # reach_blocked out of a block, else reach_free + reach_aggressiveness x aggressiveness (dive_reach more at a runner getting away)
+  tackle_range: 2
+  reach_blocked: 0.9
+  reach_free: 1.35
+  reach_aggressiveness: 0.2
+  escaping_speed: 1                  # the runner gets away from him when the gap closes slower than this
+  # a juke: a free tackler not behind him (facing above juke_facing), the runner faster than juke_speed;
+  # chance juke_scale x style x clamp(juke_base + juke_edge x (juke - tackling and reaction), juke_min, juke_max)
+  juke_facing: -0.3
+  juke_speed: 2
+  juke_finesse: 1.25
+  juke_power: 0.75
+  juke_base: 0.12
+  juke_edge: 0.42
+  juke_min: 0.01
+  juke_max: 0.4
+  juked_cooldown: 0.9                # the juked tackler can't try again for this long, is off balance this long ...
+  juked_stun: 0.3
+  juke_speed_kept: 0.92              # ... and the runner keeps this share of his speed
+  gang_range: 1.8                    # other defenders this close help (gang_tackle each)
+  # the tackle: tackle_base + tackle_edge x (hit - hold) / 99 + gang_tackle per helper; hit = tackling x hit_tackle +
+  # strength x hit_strength; hold = break tackle and strength, strength counting break_power / break_balanced / break_finesse
+  hit_tackle: 0.65
+  hit_strength: 0.35
+  break_power: 0.5
+  break_balanced: 0.35
+  break_finesse: 0.2
+  tackle_base: 0.865
+  tackle_edge: 0.33
+  gang_tackle: 0.08
+  sack_base: 0.05                    # a QB in the pocket: + this - sack_escape x scramble
+  sack_escape: 0.15
+  facing: 0.3                        # squared up in front (facing above this): + squared_up; from behind (below -facing): - from_behind
+  squared_up: 0.1
+  from_behind: 0.1
+  arm_tackle: 0.45                   # out of a block: x this
+  dive_tackle: 0.55                  # diving at him: x this
+  tackle_min: 0.12
+  tackle_max: 0.97
+  broken_cooldown: 0.8               # a broken tackle: the tackler can't try again for this long; the runner keeps broken_speed_base + broken_speed_strength x strength of his speed
+  broken_speed_base: 0.45
+  broken_speed_strength: 0.3
+  # fumbles: the force of the hit (strength, tackling, aggressiveness weighted) against ball security
+  strip_strength: 0.45
+  strip_tackle: 0.35
+  strip_aggressiveness: 0.2
+  blindside_fumble: 4                # a sack: x this (the ball is out in the open)
+  fumble_max: 0.2
+  fumble_stun_carrier: 0.8
+  fumble_stun_tackler: 0.5
+  # falling forward after the tackle: his speed x fall_forward yards, at most fall_power / fall_balanced / fall_finesse
+  fall_forward: 0.12
+  fall_power: 1.5
+  fall_balanced: 1
+  fall_finesse: 0.6
+  # a loose ball: a player within recover_range gets it with recover_chance x (recover_agility_base + recover_agility x agility / 99)
+  # a tick (anybody after recover_forced seconds); the whistle blows after loose_ball_whistle seconds
+  recover_range: 0.8
+  recover_chance: 0.25
+  recover_agility_base: 0.6
+  recover_agility: 0.6
+  recover_forced: 3.5
+  loose_ball_whistle: 3.6
+  recover_react: 0.2                 # the other side reacts to the recovery within this many seconds (x reaction)
+  loose_ball_lead: 0.3               # players chase a loose ball leading it by this many seconds
+  fill_depth: 1                      # second-level defenders fill the hole at this depth past the line instead of chasing into the backfield
+  fumble_bounce_min: 2               # a fumble bounces away in a random direction at between these speeds (yards a second)
+  fumble_bounce_max: 5
+
+# ---- kickoffs, punts and field goals ----
+kicking:
+  # the snap to the kick: a punt goes punt_ready seconds after the snap (punt_hurry_time with a rusher within
+  # punt_hurry_range), a field goal fg_ready seconds after it
+  punt_ready: 1
+  punt_hurry_range: 2.2
+  punt_hurry_time: 0.5
+  fg_ready: 0.45
+  kickoff_timeout: 1.6               # the kicker kicks off at the latest this many seconds into his run-up
+  # a blocked kick: a rusher within block_range of the kick point blocks it with block_base + block_rush x
+  # pass rush + block_jumping x jumping (/ 99); everybody reacts within block_react_min .. block_react_max seconds
+  block_range: 1.3
+  block_base: 0.35
+  block_rush: 0.3
+  block_jumping: 0.15
+  block_react_min: 0.1
+  block_react_max: 0.3
+  # kickoffs: kickoff_distance + kickoff_power x kick power / 99 yards, give or take kickoff_noise +
+  # kickoff_noise_accuracy x (1 - accuracy); across: kickoff_spread plus kickoff_aim + kickoff_aim_accuracy x (1 - accuracy)
+  kickoff_distance: 44
+  kickoff_power: 24
+  kickoff_noise: 2
+  kickoff_noise_accuracy: 5
+  kickoff_spread: 5
+  kickoff_aim: 1.5
+  kickoff_aim_accuracy: 6
+  kickoff_hang: 3.4                  # hang time: this + kickoff_hang_power x kick power / 99, give or take kickoff_hang_noise
+  kickoff_hang_power: 0.8
+  kickoff_hang_noise: 0.15
+  # punts: punt_distance + punt_power x kick power / 99 yards, give or take punt_noise + punt_noise_accuracy x (1 -
+  # accuracy); x punt_rushed with a rusher within punt_rushed_range; across: punt_aim + punt_aim_accuracy x (1 - accuracy)
+  punt_distance: 34
+  punt_power: 16
+  punt_noise: 3
+  punt_noise_accuracy: 6
+  punt_rushed_range: 3
+  punt_rushed: 0.85
+  punt_aim: 3
+  punt_aim_accuracy: 6
+  punt_hang: 3.2                     # hang time: this + punt_hang_power x kick power / 99, give or take punt_hang_noise
+  punt_hang_power: 1.2
+  punt_hang_noise: 0.2
+  # field goals: range fg_range + fg_range_power x kick power / 99 (give or take fg_range_noise); the angle
+  # off line fg_error + fg_error_accuracy x (1 - accuracy) radians, x (clutch_base - clutch_composure x composure) late and close
+  fg_range: 40
+  fg_range_power: 22
+  fg_range_noise: 2.5
+  fg_error: 0.024
+  fg_error_accuracy: 0.16
+  clutch_base: 1.3
+  clutch_composure: 0.5
+  # the snap, the kick and the ball in the air (heights in yards, sim x: the far goal line is at 110, the end line at 120)
+  snap_speed: 18                     # the long snap travels at this many yards a second ...
+  snap_peak: 0.2                     # ... this high
+  hold_spot_ahead: 0.8               # the field goal is kicked (and blocked) from this far in front of the holder
+  block_point_ahead: 1.5             # kick blockers go for the spot this far in front of the punter / kick point
+  kickoff_reach: 0.8                 # the kicker kicks off once he is this close to the ball
+  blocked_ball_min: -7               # a blocked kick bounces back at between this ...
+  blocked_ball_max: -2               # ... and this many yards a second along the field ...
+  blocked_ball_spread: 3             # ... with this spread sideways ...
+  blocked_ball_ahead: 0.5            # ... from this far in front of the kick point
+  kickoff_max_x: 121                 # a kickoff lands no deeper than this ...
+  kickoff_peak: 14                   # ... and goes this high
+  punt_max_x: 119.5                  # a punt lands no deeper than this ...
+  punt_peak: 12                      # ... and goes this high
+  posts_extra: 0.8                   # a field goal is this much longer than the distance to the posts on the end line (also the kick length in the statistics)
+  fg_land_x: 122                     # a field goal long enough comes down here (behind the posts)
+  fg_short_fraction: 0.97            # one that is short comes down at this share of the kicker's range ...
+  fg_short_spread: 0.9               # ... with this share of its sideways error
+  fg_flight_base: 1.1                # a field goal is in the air this many seconds plus its length / fg_flight_speed ...
+  fg_flight_speed: 45
+  fg_peak_base: 4                    # ... and goes this high plus fg_peak_per_yard x its length
+  fg_peak_per_yard: 0.12
+  bounce_min: 1.5                    # a kick nobody fields bounces on at between bounce_min and bounce_max yards a second ...
+  bounce_max: 6
+  bounce_spread: 2                   # ... with this spread sideways
+
+# ---- returners and kick coverage ----
+returns:
+  # punts: the returner decides on a fair catch fair_catch_decide seconds before the ball comes down: he
+  # calls it when the coverage gets there within fair_catch_margin seconds of the ball and he is within fair_catch_range
+  fair_catch_decide: 0.7
+  fair_catch_margin: 0.6
+  fair_catch_range: 3
+  catch_range: 1.8                   # a returner this close to the landing spot fields the kick
+  # a muff: muff_base x (muff_hands - catching) + muff_security x (1 - ball security) (all / 99); a punt with a
+  # cover man within muff_traffic_range: + muff_traffic x (muff_composure - composure)
+  muff_base: 0.025
+  muff_hands: 1.4
+  muff_security: 0.02
+  muff_traffic_range: 2
+  muff_traffic: 0.03
+  muff_composure: 1.2
+  muff_react: 0.2                    # everybody reacts to a muff within this many seconds (x reaction)
+  catch_speed_kept: 0.5              # the returner keeps this share of his speed when he catches it
+  cover_react_min: 0.05              # the coverage reacts to the catch after min .. max seconds (x reaction) ...
+  cover_react_max: 0.3
+  dynamic_cover_react_min: 0.4       # ... on a dynamic kickoff (standing still until now) after these
+  dynamic_cover_react_max: 0.8
+  pickup_range: 8                    # a punt-return blocker picks up a cover man this close coming down
+  let_drop_line: 106                 # a punt coming down beyond this (sim x; 106 = the 4) is left to roll
+  kickoff_kneel_line: 112            # a kickoff caught this deep (sim x; 112 = 2 yards deep) is downed for a touchback
+  down_range: 1                      # a cover man this close to a rolling punt downs it
+  muff_bounce: 3                     # a muffed kick bounces away with this spread (yards a second, both directions)
+
+# ---- flags thrown during the play (pre-snap fouls are rolled by the game) ----
+penalties:
+  # roughing the passer / kicker: a defender this close to him 0.2 .. 0.9 s after the release gets a roll
+  late_hit_from: 0.2
+  late_hit_until: 0.9
+  late_hit_range: 0.9
+  roughing_passer: 0.028             # chance (x the defender's penalty rate and aggressiveness)
+  roughing_kicker: 0.15
+  late_hit_stun: 0.6                 # seconds the passer / kicker is down
+  # pass interference: receiver and defender both at the ball (gaps below these), the contest above pi_contest
+  pi_receiver_gap: 1.4
+  pi_defender_gap: 1.0
+  pi_contest: 0.5
+  pass_interference: 0.07            # chance x penalty rate x (pi_aggressiveness_base + pi_aggressiveness x aggressiveness)
+  pi_aggressiveness_base: 0.6
+  pi_aggressiveness: 0.6
+  pi_breakup: 0.6                    # ... and the pass is broken up this often (else the catch can still be made)
+  offensive_pi: 0.065                # a receiver getting there first pushes off (x his penalty rate)
+  holding_range: 1.5                 # a beaten man defender this close grabs (defensive holding) ...
+  defensive_holding: 0.05            # ... with this chance x his penalty rate
+  holding_slow: 0.5                  # ... and the receiver keeps this share of his speed
+  illegal_block: 0.09                # a return blocker hitting a cover man from behind (moving faster than illegal_block_speed, facing away more than illegal_block_facing)
+  illegal_block_speed: 2
+  illegal_block_facing: 0.6
+  holding_pass: 0.028                # a shed block: holding with this chance in pass protection, holding_run in run blocking (x penalty rate)
+  holding_run: 0.014
+  holding_leverage: 0.3              # ... and the held defender is set back to this leverage
+  late_hit_out_range: 3              # a defender this close to a runner going out of bounds: a late hit with late_hit_out x penalty rate x (0.5 + aggressiveness)
+  late_hit_out: 0.12
+  face_mask: 0.0035                  # a tackle: face mask with this x penalty rate x (face_mask_aggr_base + face_mask_aggr x aggressiveness)
+  face_mask_aggr_base: 0.6
+  face_mask_aggr: 0.8
+  late_hit_aggr_base: 0.5            # roughing the passer / kicker: x (this + aggressiveness / 99)
+  late_hit_out_aggr_base: 0.5        # late hit out of bounds: x (this + aggressiveness / 99)
+
+# ---- injuries on the field ----
+injuries:
+  # injuries on a tackle (both players): injury_chance x (injury_durability - durability / 99), x tired_injury when worn out (fatigue below tired_below)
+  injury_chance: 0.004
+  injury_durability: 1.6
+  tired_below: 0.93
+  tired_injury: 1.4
+
+# ---- steering and the ball in the air or on the ground ----
+physics:
+  # steering: every player accelerates toward his target (move(); the passer's route prediction uses the same steering)
+  arrive_slowdown: 3                 # a player who is to stop at his target slows to this many times his remaining distance (yards a second)
+  arrived: 0.05                      # ... and stands still within this many yards of it
+  brake_factor: 1.3                  # slowing down is this many times quicker than speeding up
+  standstill_speed: 1                # below this speed (yards a second) a player can start off in any direction
+  # nobody but the ball carrier has a reason to leave the field
+  target_sideline_margin: 0.5        # targets beyond the sidelines are pulled back to this far inside them
+  pull_up_braking: 0.7               # a player heading for a spot beyond the end lines pulls up with this share of his acceleration ...
+  sideline_braking: 0.45             # ... and everybody but the carrier brakes for the lines with this share ...
+  end_line_room: 0.6                 # ... to stop this far inside the end lines ...
+  sideline_room: 0.5                 # ... and this far outside the sidelines
+  sideline_overrun: 2                # nobody but the carrier ends up more than this many yards beyond a sideline ...
+  end_line_overrun: 0.25             # ... or this many beyond an end line
+  # the ball (heights in yards)
+  held_height: 1                     # a ball in a player's hands (a pass leaves and arrives at this height)
+  loose_ball_height: 0.4             # a ball coming loose starts at this height
+  loose_ball_friction: 1.4           # a loose ball loses this share of its speed a second
+  bounce_base: 0.3                   # a bouncing ball is this high plus bounce_height x |sin(time x bounce_rate)| ...
+  bounce_height: 0.3
+  bounce_rate: 9
+  bounce_speed: 4                    # ... the full bounce from this speed (yards a second) up
+
+# ---- reading the alignment: who is a back, the shotgun, defenders aligning to the offense ----
+formation:
+  backfield_depth: 2.5               # a player more than this many yards behind the line is a back (labels "back", "back2")
+  shotgun_depth: 3                   # a quarterback more than this many yards behind the line is in the shotgun
+  back_blocker_depth: 3              # a pass blocker more than this many yards behind the line blocks like a back
+  centered: 0.1                      # a receiver within this many yards of the ball is on it: his routes break to the mirror side
+  slot_depth: 4                      # a defender over a receiver who is not there takes the slot on that side: at least this deep ...
+  slot_width: 7                      # ... this many yards from the ball
+  # near the goal line the defense compresses so that nobody lines up beyond the end line
+  compress_room: 16                  # with less than this many yards to the end line ...
+  compress_keep: 1                   # ... depths beyond this many yards off the ball ...
+  compress_span: 15                  # ... shrink to x (room - compress_end) / compress_span
+  compress_end: 1
+
+# ---- where players go and how fast when their job is simple (shares of top speed, yards from the line) ----
+choreography:
+  # the quarterback
+  passer_after_throw: 0.3            # after the throw: share of top speed
+  kneel_depth: 2.3                   # a kneel: he steps back to this far behind the line ...
+  clock_play_speed: 0.35             # ... (spike or kneel) at this share of top speed
+  fake_depth: 3                      # play action: he fakes the handoff this far behind the line ...
+  fake_speed: 0.7                    # ... at this share of top speed
+  drop_speed: 0.8                    # the drop: share of top speed
+  drop_from: 2                       # a drop deeper than this many yards ends ...
+  drop_extra: 1.5                    # ... this much deeper than the play's drop depth (from his stance)
+  pocket_step: 2                     # stepping away from the rush: this far a decision ...
+  pocket_line: 1.5                   # ... staying this far behind the line ...
+  pocket_width: 8                    # ... and within this many yards of the ball sideways ...
+  pocket_step_speed: 0.7             # ... at this share of top speed
+  pocket_settle_speed: 0.5           # settling at the drop spot: share of top speed
+  stand_by_speed: 0.4                # the QB / kicker / holder while a teammate runs with the ball: share of top speed
+  fake_away_back: 2                  # after the handoff the QB carries out the fake: this far back ...
+  fake_away_side: 3                  # ... and this far to the other side ...
+  fake_away_speed: 0.6               # ... at this share of top speed
+  mesh_speed: 0.8                    # to the mesh point: share of top speed
+  # the ball carrier of a run before the handoff
+  qb_run_speed: 0.7                  # a designed QB run before the run shows: share of top speed (a draw shows pass first)
+  mesh_early: 0.45                   # shotgun: the back leaves for the mesh this many seconds before it ...
+  back_speed: 0.8                    # ... at this share of top speed
+  # the defense
+  crash_depth: 0.5                   # the read-option end crashing: toward the spot this far behind the line ...
+  crash_side: 0.5                    # ... this far to the back side of the ball ...
+  crash_speed: 0.85                  # ... at this share of top speed
+  squeeze_depth: 0.2                 # ... staying home: this far past the line ...
+  squeeze_width: 3.5                 # ... at least this far outside the ball ...
+  squeeze_inside: 1                  # ... or this much inside where he lined up ...
+  squeeze_speed: 0.5                 # ... at this share of top speed
+  bite_speed: 0.7                    # a defender biting on play action chases the fake at this share of top speed
+  scramble_cover_line: 0.5           # coverage stays with its men while a scrambling QB is this far behind the line ...
+  scramble_cover_range: 7            # ... and more than this many yards away
+  # the kicker
+  kickoff_approach_speed: 0.75       # kickoff run-up: share of top speed
+  fg_approach_behind: 0.6            # field goal: the kicker approaches from this far behind ...
+  fg_approach_side: 0.4              # ... and this far to the side of the holder ...
+  fg_approach_speed: 0.5             # ... at this share of top speed
+
+# ---- gadget plays: pitches, laterals, a back or receiver who throws ----
+gadgets:
+  pitch_past_line: 0.5               # a pitch not thrown in time, or with the ball carrier this far past the line, is off: he keeps it
+  pitch_ahead: 0.5                   # the pitch goes once the man is no more than this far ahead of the ball carrier
+  pitch_backward: 0.3                # a pitch is aimed at least this far behind the passer (a lateral may not go forward)
+  pitch_peak: 0.8                    # a pitch's peak height (yards)
+  reverse_hole: 10                   # after a pitch the runner heads for a hole this far to the side he was moving (a reverse goes back)
+  pitch_bounce_x: -1                 # a pitch on the ground bounces at this mean speed along the field (yards a second) ...
+  pitch_bounce_spread: 2             # ... with this spread (both directions)
+  pass_behind_line: 0.3              # a trick-play passer throws only from this far behind the line (past it the play is a run)
+  passer_drop_depth: 3               # a back or receiver who becomes the passer sets up at least this far behind the line ...
+  passer_drop_extra: 1               # ... and this much deeper than he is
+  pitch_wait_line: 1.5               # a ball carrier about to pitch stays this far behind the line ...
+  pitch_wait_speed: 0.65             # ... at this share of top speed
+  trick_pass_depth: 2.5              # a back about to throw drifts to this far behind the line ...
+  trick_pass_drift: 6                # ... and this far toward the hole side ...
+  trick_pass_speed: 0.75             # ... at this share of top speed
+  pitch_ready_depth: 7               # the QB or back who gets a pitch back sets up this far behind the line ...
+  pitch_ready_speed: 0.8             # ... at this share of top speed
+  trail_early: 0.5                   # a receiver coming around for a pitch trails the ball from this many seconds before it ...
+  trail_range: 12                    # ... once within this many yards of the ball carrier ...
+  trail_behind: 2.5                  # ... this far behind ...
+  trail_side: 2.5                    # ... and to the side of him ...
+  trail_lead: 0.3                    # ... leading his own sideways movement by this many seconds ...
+  trail_line: 1                      # ... and at least this far behind the line
+
+# ---- kickoff and punt units: coverage lanes, the return wall ----
+kick_units:
+  # the kicking team before the catch
+  run_up: 6                          # kickoff: the coverage times its run-up with the kicker, heading this far ahead of where it is ...
+  behind_ball: 0.5                   # ... but staying this far behind the ball ...
+  run_up_speed: 0.55                 # ... at this share of top speed
+  gunner_release: 10                 # punt coverage releases at the snap toward a spot this far downfield
+  safety_valve_depth: 22             # the kicker / punter stays back as the safety valve, this far short of the landing spot ...
+  safety_valve_speed: 0.8            # ... at this share of top speed
+  closing_range: 40                  # coverage men move from their lane toward the landing spot: 1 - yards to go / closing_range of the way ...
+  closing_min: 0.15                  # ... but at least closing_min and at most closing_max of it ...
+  closing_max: 0.85
+  land_short: 3                      # ... aiming this far short of it
+  # the receiving team
+  let_drop_away: 8                   # a returner letting a punt drop stays this far short of it
+  second_returner_behind: 5          # the other returner becomes the lead blocker: this far behind the returner ...
+  second_returner_side: 2            # ... and this far to the side
+  wall_share: 0.45                   # return blockers set up the wall short of the catch by this share of their distance to it ...
+  wall_min: 8                        # ... at least wall_min and at most wall_max yards short of it ...
+  wall_max: 28
+  wall_stay: 0.8                     # ... sideways at this share of their own spot plus wall_toward of the catch's
+  wall_toward: 0.2
+  pickup_past: 0.5                   # they pick up coverage men no more than this far past them ...
+  pickup_step: 1.5                   # ... stepping into his path this far from him (toward the ball)
+  jam_ahead: 1                       # a jammer stays this far in front of the gunner
 # Draft classes
 
 A career makes up a draft class when a season ends. Put a file named `<year>.yaml` here (for
@@ -25457,23 +27851,28 @@ ai: {weight: 0.6, man: true}
 #     pass: QB = pass, everyone else = pass_block
 #   roles: pass_block, run_block, lead (lead blocker through the hole), route, carry, handoff, pass
 #   route: name from routes.yaml, or inline {points: [[x, y], ...], sit: true/false}
+#   family: plays that look alike to a defense (other slant concepts, other four verticals ...): a defense
+#           that has seen one of the family lately reads the others a little faster (config/game.yaml familiarity)
 #   ai: hints for the CPU coordinator (depth = typical gain/target depth in yards; multipliers per situation)
 name: Inside Zone
 type: run
 formation: singleback_11
 description: "Zone run aimed at the right B-gap, back reads the cutback."
+family: inside_zone
 run: {carrier: RB, hole: 1.5, mesh: 0.65}
 ai: {depth: 4, short_yardage: 1.3}
 name: Outside Zone
 type: run
 formation: singleback_11
 description: "Stretch run to the tight end side."
+family: outside_zone
 run: {carrier: RB, hole: 7.5, mesh: 0.55}
 ai: {depth: 5, short_yardage: 0.6}
 name: Power O
 type: run
 formation: iform_21
 description: "Downhill run off left tackle, fullback leads through the hole."
+family: power
 run: {carrier: RB, hole: -2.4, mesh: 0.7}
 assign:
   FB: lead
@@ -25482,6 +27881,7 @@ name: Iso
 type: run
 formation: iform_21
 description: "Fullback isolates the middle linebacker, back follows him."
+family: lead_dive
 run: {carrier: RB, hole: 0.7, mesh: 0.7}
 assign:
   FB: lead
@@ -25490,12 +27890,14 @@ name: Toss Sweep
 type: run
 formation: singleback_12
 description: "Quick pitch to the edge behind two tight ends."
+family: toss
 run: {carrier: RB, hole: 9, mesh: 0.45}
 ai: {depth: 5, short_yardage: 0.5}
 name: Shotgun Draw
 type: run
 formation: gun_11
 description: "Shows pass, receivers clear out, delayed handoff up the middle."
+family: draw
 run: {carrier: RB, hole: 0.5, mesh: 1.1}
 trick: {looks_like: pass}
 assign:
@@ -25519,6 +27921,7 @@ name: Quick Slants
 type: pass
 formation: gun_11
 description: "Three-step timing throw, slants from both sides."
+family: slants
 qb: {drop: 1, progression: [H, X, Z, Y]}
 assign:
   X: {route: slant}
@@ -25530,6 +27933,7 @@ name: Smash
 type: pass
 formation: gun_11
 description: "Hitch underneath, corner over the top: high-low on the cornerback."
+family: smash
 qb: {drop: 3, progression: [H, X, Y, Z, RB]}
 assign:
   X:  {route: hitch_5}
@@ -25542,6 +27946,7 @@ name: Mesh
 type: pass
 formation: gun_11
 description: "Two shallow crossers rub past each other, man-coverage beater."
+family: crossers
 qb: {drop: 3, progression: [Y, X, H, RB, Z]}
 assign:
   X:  {route: drag_6}
@@ -25554,6 +27959,7 @@ name: Sail (Flood)
 type: pass
 formation: gun_11
 description: "Three levels to the right: go, deep out, flat."
+family: flood
 qb: {drop: 5, progression: [Y, H, RB, X, Z]}
 assign:
   Z:  {route: go}
@@ -25566,6 +27972,7 @@ name: Four Verticals
 type: pass
 formation: gun_11
 description: "Stretch every deep zone, check down if nothing is open."
+family: verticals
 qb: {drop: 5, progression: [H, Y, X, Z, RB]}
 assign:
   X:  {route: go}
@@ -25578,6 +27985,7 @@ name: PA Deep Post
 type: pass
 formation: singleback_11
 description: "Fake the run, take a shot to the post. Tight end and back stay in to block."
+family: play_action_shot
 qb: {drop: 7, play_action: true, fake_to: RB, progression: [Z, X, H]}
 assign:
   Z: {route: post}
@@ -25588,6 +27996,7 @@ name: PA Bootleg
 type: pass
 formation: iform_21
 description: "Fake to the back, quarterback rolls right; fullback leaks to the flat."
+family: bootleg
 qb: {drop: 6, rollout: 6, play_action: true, fake_to: RB, progression: [Y, FB, Z, X]}
 assign:
   Y:  {route: out_10}
@@ -25599,6 +28008,7 @@ name: Y Cross
 type: pass
 formation: singleback_12
 description: "Left tight end runs a deep crosser, right tight end sits on a stick."
+family: crossers
 qb: {drop: 5, progression: [U, Y, X, RB, Z]}
 assign:
   U:  {route: dig_12}
@@ -25611,12 +28021,14 @@ name: Zone Read
 type: run
 formation: gun_11
 description: "Inside zone right; the QB reads the backside end and keeps it if he crashes on the back."
+family: read_option
 run: {carrier: RB, hole: 2, mesh: 0.55, option: QB}
 ai: {depth: 5, qb_run: true}
 name: QB Draw
 type: run
 formation: gun_11
 description: "Looks like a drop-back; the line pass-sets, receivers clear out, then the QB runs up the middle."
+family: draw
 run: {carrier: QB, hole: 0.5, mesh: 1.0, qb_drop: 2}
 trick: {looks_like: pass}
 assign:
@@ -25647,6 +28059,7 @@ name: Dagger
 type: pass
 formation: gun_11
 description: "Slot clears out on a seam, the outside receiver runs a deep dig behind the linebackers."
+family: dig
 qb: {drop: 5, progression: [X, H, Y, RB, Z]}
 assign:
   H: {route: seam}
@@ -25660,6 +28073,7 @@ type: pass
 formation: gun_trips_11
 menu: Screens
 description: "Quick bubble screen to the slot; the other two trips receivers block."
+family: screen
 qb: {drop: 0.5, progression: [H, X]}
 assign:
   H: {route: bubble}
@@ -25672,6 +28086,7 @@ name: Trips Flood
 type: pass
 formation: gun_trips_11
 description: "Three levels to the trips side: go, out, arrow. The backside post holds the safety."
+family: flood
 qb: {drop: 5, progression: [H, Y, X, Z, RB]}
 assign:
   Z: {route: go}
@@ -25684,6 +28099,7 @@ name: Trips Stick
 type: pass
 formation: gun_trips_11
 description: "Quick stick by the tight end with the slot in the flat; short-yardage passing staple."
+family: stick
 qb: {drop: 1, progression: [Y, H, X, RB, Z]}
 assign:
   Y: {route: stick_6}
@@ -25696,6 +28112,7 @@ name: Empty Spacing
 type: pass
 formation: gun_empty
 description: "Five quick hitches and sticks across the field. Ball out fast, but nobody stays in to block."
+family: stick
 qb: {drop: 1, progression: [H, Y, RB, X, Z]}
 assign:
   X: {route: hitch_6}
@@ -25708,6 +28125,7 @@ name: Empty Verticals
 type: pass
 formation: gun_empty
 description: "Everybody goes deep from an empty set. Big play or a big hit on the QB."
+family: verticals
 qb: {drop: 5, progression: [H, Y, Z, X, RB]}
 assign:
   X: {route: go}
@@ -25720,12 +28138,14 @@ name: Pistol Read Option
 type: run
 formation: pistol_11
 description: "Downhill zone left from the pistol; the QB pulls it when the end squeezes."
+family: read_option
 run: {carrier: RB, hole: -2, mesh: 0.6, option: QB}
 ai: {depth: 5, qb_run: true}
 name: QB Power
 type: run
 formation: pistol_11
 description: "The quarterback carries it behind the back as a lead blocker: an extra hat at the point of attack."
+family: power
 run: {carrier: QB, hole: 2.4, mesh: 0.35}
 assign:
   RB: lead
@@ -25734,6 +28154,7 @@ name: Pistol PA Shot
 type: pass
 formation: pistol_11
 description: "Run fake to the back, then two deep shots: post and go."
+family: play_action_shot
 qb: {drop: 6, play_action: true, fake_to: RB, progression: [Z, X, Y, H]}
 assign:
   Z: {route: go}
@@ -25746,12 +28167,14 @@ name: Counter
 type: run
 formation: singleback_11
 description: "Back steps right, then cuts back to the left behind pulling blockers."
+family: counter
 run: {carrier: RB, hole: -3, mesh: 0.95}
 ai: {depth: 4}
 name: PA Deep Cross
 type: pass
 formation: singleback_11
 description: "Hard run fake, the X runs a deep crosser under a post. Beats single-high safeties."
+family: play_action_shot
 qb: {drop: 6, play_action: true, fake_to: RB, progression: [X, Y, Z, H]}
 assign:
   X: {route: deep_cross}
@@ -25763,6 +28186,7 @@ name: FB Dive
 type: run
 formation: iform_21
 description: "Quick hitter: the fullback hits the A-gap before the defense reacts."
+family: lead_dive
 run: {carrier: FB, hole: 0.7, mesh: 0.35}
 assign:
   RB: lead
@@ -25771,6 +28195,7 @@ name: TE Seams
 type: pass
 formation: singleback_12
 description: "Both tight ends split the safeties up the seams, receivers on dig and comeback."
+family: seams
 qb: {drop: 5, progression: [Y, U, X, Z, RB]}
 assign:
   Y: {route: seam}
@@ -25783,6 +28208,7 @@ name: Goal Line Power
 type: run
 formation: goal_line_22
 description: "Two tight ends and a fullback: power off right tackle for the last yard."
+family: power
 run: {carrier: RB, hole: 2.3, mesh: 0.6}
 assign:
   FB: lead
@@ -25791,6 +28217,7 @@ name: Goal Line PA Boot
 type: pass
 formation: goal_line_22
 description: "Fake the power, roll right. The tight end leaks across, the fullback to the flat."
+family: bootleg
 qb: {drop: 5, rollout: 6, play_action: true, fake_to: RB, progression: [U, FB, Y, X]}
 assign:
   U: {route: drag_4}
@@ -25803,6 +28230,7 @@ name: Goal Line Fade
 type: pass
 formation: goal_line_22
 description: "One-on-one fade to the lone receiver; tight ends on quick outs."
+family: fade
 qb: {drop: 3, progression: [X, Y, U]}
 assign:
   X: {route: fade}
@@ -25908,6 +28336,7 @@ type: pass
 formation: gun_11
 menu: Screens
 description: "The line lets the rush in, then three linemen get out in front of the back behind the line."
+family: screen
 qb: {drop: 6, throw_at: 1.6, progression: [RB, H, X, Z]}
 assign:
   RB: {route: screen_rb, delay: 0.8}
@@ -25923,6 +28352,7 @@ type: pass
 formation: gun_trips_11
 menu: Screens
 description: "Quick screen: the outside receiver comes back inside behind a wall of two linemen; the slots block the corners."
+family: screen
 qb: {drop: 2, throw_at: 0.9, progression: [Z, X]}
 assign:
   Z:  {route: tunnel}
@@ -25951,6 +28381,7 @@ type: pass
 formation: gun_11
 menu: End of Half
 description: "Two-minute drill: outs and comebacks at the sideline, so the receiver can step out and stop the clock."
+family: outs
 qb: {drop: 5, progression: [Z, X, H, RB, Y]}
 assign:
   X:  {route: comeback_15}
@@ -25963,6 +28394,7 @@ name: Slant Flat
 type: pass
 formation: gun_11
 description: "Quick game: slants outside, the slot runs to the flat underneath them. Beats press and blitz."
+family: slants
 qb: {drop: 3, progression: [X, H, Z, Y]}
 assign:
   X:  {route: slant}
@@ -25975,6 +28407,7 @@ name: Levels
 type: pass
 formation: gun_trips_11
 description: "Trips: in-breaking routes at 6, 10 and 14 yards, a high-low read on the linebackers."
+family: dig
 qb: {drop: 5, progression: [H, Z, Y, X, RB]}
 assign:
   Y:  {route: drag_6}
@@ -25987,6 +28420,7 @@ name: Drive
 type: pass
 formation: singleback_11
 description: "Shallow cross under a 12-yard dig: the linebacker can't take both."
+family: crossers
 qb: {drop: 5, progression: [H, Y, Z, RB, X]}
 assign:
   H:  {route: drag_4}
@@ -25999,6 +28433,7 @@ name: HB Wheel
 type: pass
 formation: gun_11
 description: "The back runs a wheel up the sideline while the slot clears the corner with a post."
+family: wheel
 qb: {drop: 5, progression: [RB, H, Y, X, Z]}
 assign:
   RB: {route: wheel}
@@ -26011,18 +28446,21 @@ name: Duo
 type: run
 formation: singleback_12
 description: "Downhill between the guards with double teams at the point of attack; both tight ends block in."
+family: inside_zone
 run: {carrier: RB, hole: 0.7, mesh: 0.65}
 ai: {depth: 3, short_yardage: 1.5}
 name: Weak Stretch
 type: run
 formation: singleback_11
 description: "Outside zone away from the tight end, to the side with fewer blockers but fewer defenders too."
+family: outside_zone
 run: {carrier: RB, hole: -5, mesh: 0.6}
 ai: {depth: 4, weight: 0.8}
 name: 4 Wide Verticals
 type: pass
 formation: gun_10
 description: "Four receivers up the field against any coverage; the QB takes the one his safety leaves alone."
+family: verticals
 qb: {drop: 5, progression: [X, H, F, Z, RB]}
 assign:
   X:  {route: go}
@@ -26035,6 +28473,7 @@ name: Double Smash
 type: pass
 formation: gun_10
 description: "Smash to both sides: the slots run corners over the outside hitches. A high-low on both corners."
+family: smash
 qb: {drop: 3, progression: [H, F, X, Z, RB]}
 assign:
   X:  {route: hitch_5}
@@ -26047,6 +28486,7 @@ name: Spread Stick
 type: pass
 formation: gun_10
 description: "Quick game from four wide: stick and arrow to the right, a slant on the left. Out in two seconds."
+family: stick
 qb: {drop: 1, progression: [F, Z, X, H, RB]}
 assign:
   Z:  {route: go}
@@ -26059,6 +28499,7 @@ name: Spread Draw
 type: run
 formation: gun_10
 description: "Four wide receivers empty the box, the line sets up to pass, then the back takes it up the middle."
+family: draw
 run: {carrier: RB, hole: -0.5, mesh: 1.1}
 trick: {looks_like: pass}
 assign:
@@ -26076,6 +28517,7 @@ name: X Post-Dig
 type: pass
 formation: gun_10
 description: "Built for the X: a post over the slot's dig (a high-low on the safety). The first look goes to him."
+family: dig
 qb: {drop: 5, progression: [X, H, F, RB, Z]}
 assign:
   X:  {route: post}
@@ -26088,6 +28530,7 @@ name: Empty X Iso
 type: pass
 formation: gun_empty_quads
 description: "Four receivers to the right pull the coverage over; the X is alone on the left for a comeback."
+family: outs
 qb: {drop: 3, progression: [X, H, Y, RB, Z]}
 assign:
   X:  {route: comeback_12}
@@ -26100,6 +28543,7 @@ name: Empty Slants
 type: pass
 formation: gun_empty
 description: "Slants from the outside, sticks inside: five quick routes and the ball out on the third step."
+family: slants
 qb: {drop: 1, progression: [X, H, Y, Z, RB]}
 assign:
   X:  {route: slant}
@@ -26112,6 +28556,7 @@ name: Quads Flood
 type: pass
 formation: gun_empty_quads
 description: "Four to one side at three levels: go, deep out, sail and flat. Overloads any zone."
+family: flood
 qb: {drop: 5, progression: [H, Y, RB, X, Z]}
 assign:
   Z:  {route: go}
@@ -26124,6 +28569,7 @@ name: Gun Y-Stick
 type: pass
 formation: gun_12
 description: "Both tight ends work the short middle: stick and arrow, the receivers clear the corners."
+family: stick
 qb: {drop: 1, progression: [Y, U, Z, RB, X]}
 assign:
   Y:  {route: stick_6}
@@ -26136,12 +28582,14 @@ name: Gun Inside Zone
 type: run
 formation: gun_12
 description: "Shotgun zone with two tight ends blocking, the back aiming for the right B-gap."
+family: inside_zone
 run: {carrier: RB, hole: 1.5, mesh: 0.6}
 ai: {depth: 4, short_yardage: 1.2}
 name: Gun PA Seams
 type: pass
 formation: gun_12
 description: "Fake the zone, both tight ends race up the seams between the safeties: a shot play from a run look."
+family: seams
 qb: {drop: 5, play_action: true, fake_to: RB, progression: [U, Y, X, Z]}
 assign:
   U:  {route: seam_post}
@@ -26153,6 +28601,7 @@ name: Heavy Power
 type: run
 formation: singleback_13
 description: "Three tight ends and a downhill run off right tackle; the wing kicks out the end."
+family: power
 run: {carrier: RB, hole: 2.4, mesh: 0.7}
 assign:
   W: lead
@@ -26161,6 +28610,7 @@ name: Heavy Counter
 type: run
 formation: singleback_13
 description: "Back steps to the wing, then cuts back left behind the U and the pulling guard."
+family: counter
 run: {carrier: RB, hole: -2.6, mesh: 0.95}
 assign:
   W: lead
@@ -26169,6 +28619,7 @@ name: Heavy Toss
 type: run
 formation: singleback_13
 description: "Quick pitch to the right edge behind the tight end and the wing."
+family: toss
 run: {carrier: RB, hole: 9, mesh: 0.45}
 assign:
   W: lead
@@ -26177,6 +28628,7 @@ name: Heavy PA Leak
 type: pass
 formation: singleback_13
 description: "The whole line sells the run; the U leaks up the seam behind the linebackers who bit on it."
+family: play_action_shot
 qb: {drop: 6, play_action: true, fake_to: RB, progression: [U, W, X]}
 assign:
   U:  {route: seam}
@@ -26187,6 +28639,7 @@ name: Pony Split Zone
 type: run
 formation: pistol_20
 description: "Two backs: the inside zone goes left, the second back crosses the formation and leads."
+family: inside_zone
 run: {carrier: RB, hole: -1.5, mesh: 0.65}
 assign:
   F: lead
@@ -26195,6 +28648,7 @@ name: Pony Power
 type: run
 formation: pistol_20
 description: "Downhill off right tackle from the pistol, the second back kicks out the end."
+family: power
 run: {carrier: RB, hole: 2.4, mesh: 0.65}
 assign:
   F: lead
@@ -26203,6 +28657,7 @@ name: Pony Wheel
 type: pass
 formation: pistol_20
 description: "The second back runs a wheel up the right sideline under the Z's post: a big play if a linebacker has him."
+family: wheel
 qb: {drop: 5, progression: [F, Z, H, RB, X]}
 assign:
   F:  {route: wheel}
@@ -26215,6 +28670,7 @@ name: Bunch Spot
 type: pass
 formation: gun_bunch
 description: "Corner, flat and a sit route from the bunch: a triangle read that beats zone and man."
+family: stick
 qb: {drop: 3, progression: [Y, H, Z, X, RB]}
 assign:
   Z:  {route: corner}
@@ -26227,6 +28683,7 @@ name: X Iso Fade
 type: pass
 formation: gun_bunch
 description: "The bunch draws the coverage; the X, alone on the backside, gets a go ball on the outside shoulder."
+family: fade
 qb: {drop: 5, progression: [X, Z, H, Y, RB]}
 assign:
   X:  {route: fade}
@@ -26239,6 +28696,7 @@ name: Yankee
 type: pass
 formation: singleback_11
 description: "Max protection play action: a deep over from the X under a post from the Z. Two deep shots, one safety."
+family: play_action_shot
 qb: {drop: 7, play_action: true, fake_to: RB, progression: [X, Z, H]}
 assign:
   X:  {route: deep_cross}
@@ -26249,6 +28707,7 @@ name: Post Wheel
 type: pass
 formation: gun_11
 description: "The slot runs a wheel under the outside post: whoever covers the wheel has to turn and run."
+family: wheel
 qb: {drop: 5, progression: [H, X, Y, RB, Z]}
 assign:
   X:  {route: post}
@@ -26273,6 +28732,7 @@ name: X Comeback
 type: pass
 formation: singleback_11
 description: "A deep comeback for the X, the other receivers clear his side; the tight end sits underneath."
+family: outs
 qb: {drop: 5, progression: [X, Y, H, RB, Z]}
 assign:
   X:  {route: comeback_15}
@@ -26452,30 +28912,133 @@ hail_inside:   {points: [[8, 0], [70, -5]]}
 out_12:        {points: [[12, 0], [12.5, 14]], sit: true}
 comeback_15:   {points: [[17, 0], [15, 2.5]], sit: true}
 # Game rules. All yard lines are measured from the team's own goal line (0..100).
-quarter_minutes: 15         # default quarter length (the team-select screen offers 3 to 15)
-default_matchup: [CAR, PIT] # home, away: preselected on the team-select screen, default of the text tools
-kickoff_spot: 35            # kicking team kicks from its own 35
-kickoff_touchback: 35       # receiving team's ball after a kickoff touchback (2025 NFL rule)
-kickoff_out_of_bounds: 40   # receiving team's ball after a kickoff goes out of bounds
-punt_touchback: 20
-turnover_touchback: 20      # interception / fumble downed in the end zone
-free_kick_spot: 20          # free kick after a safety
-extra_point_spot: 15        # line of scrimmage for the PAT kick (a 33-yard kick)
-two_point_spot: 2           # line of scrimmage for a two-point try
-# The game clock follows NFL rules (see README "Clock"). How long the teams take between plays
-# depends on the tempo (huddle, no huddle, running the play clock down) and on the play clock:
-timeouts_per_half: 3
-play_clock: 40              # seconds from the end of a play to the snap
-play_clock_after_stoppage: 25   # after timeouts, penalties, changes of possession, the two-minute warning
-two_minute_warning: true
-# Overtime (NFL rules since 2025): a coin toss, a kickoff, and both teams get the ball once (unless the
-# kicking team scores a safety). After that whoever is ahead wins; still tied: the next score wins.
-# A regular-season game can end in a tie, a playoff game goes on until somebody wins. The lengths are
-# for 15-minute quarters (a game with 5-minute quarters plays a third as long).
-overtime: true
-overtime_minutes: 10
-playoff_overtime_minutes: 15
-overtime_timeouts: 2
+game:
+  quarter_minutes: 15         # default quarter length (the team-select screen offers 3 to 15)
+  default_matchup: [CAR, PIT] # home, away: preselected on the team-select screen, default of the text tools
+  kickoff_spot: 35            # kicking team kicks from its own 35
+  kickoff_touchback: 35       # receiving team's ball after a kickoff touchback (2025 NFL rule)
+  kickoff_out_of_bounds: 40   # receiving team's ball after a kickoff goes out of bounds
+  kickoff_landing_zone: 20    # a kickoff nobody fields that comes down short of the receiving team's 20 counts as out of bounds (2024 rule)
+  punt_touchback: 20
+  turnover_touchback: 20      # interception / fumble downed in the end zone
+  free_kick_spot: 20          # free kick after a safety
+  extra_point_spot: 15        # line of scrimmage for the PAT kick (a 33-yard kick)
+  two_point_spot: 2           # line of scrimmage for a two-point try
+  # The game clock follows NFL rules (see README "Clock"). How long the teams take between plays
+  # depends on the tempo (huddle, no huddle, running the play clock down) and on the play clock:
+  timeouts_per_half: 3
+  play_clock: 40              # seconds from the end of a play to the snap
+  play_clock_after_stoppage: 25   # after timeouts, penalties, changes of possession, the two-minute warning
+  two_minute_warning: true
+  # Overtime (NFL rules since 2025): a coin toss, a kickoff, and both teams get the ball once (unless the
+  # kicking team scores a safety). After that whoever is ahead wins; still tied: the next score wins.
+  # A regular-season game can end in a tie, a playoff game goes on until somebody wins. The lengths are
+  # for 15-minute quarters (a game with 5-minute quarters plays a third as long).
+  overtime: true
+  overtime_minutes: 10
+  playoff_overtime_minutes: 15
+  overtime_timeouts: 2
+  preseason_overtime: false   # a tied preseason game ends in a tie (NFL since 2021)
+  overtime_quarter_minutes: 15  # the overtime lengths above are for quarters this long
+  # Downs, spots and the clock rules the game enforces between plays.
+  first_down_yards: 10        # yards to gain for a new set of downs
+  missed_field_goal_spot: 20  # a missed field goal: the other team's ball at the spot of the kick, at least at its own 20
+  two_minute_seconds: 120     # the two-minute warning; also: out of bounds stops the clock from here on in the 2nd quarter ...
+  out_of_bounds_minutes: 5    # ... and in the last this many minutes of the 4th
+  runoff_seconds: 10          # an offensive foul that stops a running clock in the last two minutes of a half costs this much
+
+# Points.
+scoring:
+  touchdown: 6
+  field_goal: 3
+  safety: 2
+  extra_point: 1
+  two_point: 2
+  defense_try: 2                     # the defense returns a try (a blocked kick, a turnover) to the other end zone
+
+# Penalty yards (half the distance to the goal line when that is shorter). The game enforces them; the
+# fouls called during a play (by the on-field simulation) carry the yards of their kind.
+penalties:
+  pre_snap: 5                        # false start, offside
+  return_foul: 10                    # holding / illegal block by the return team: from the spot of the foul (or the end of the return)
+  roughing_kicker: 15                # the kicking team keeps the ball
+  defensive_holding: 5               # plays: defensive holding (automatic first down)
+  holding: 10                        # offensive holding
+  offensive_pass_interference: 10
+  illegal_block: 10                  # illegal block in the back (kick returns)
+  roughing: 15                       # roughing the passer / the kicker
+  face_mask: 15
+  unnecessary_roughness: 15          # a late hit out of bounds
+
+# ---- Career mode: the NFL's league rules ----
+# The league year: the regular season, then the playoffs (one week per round: wild card, divisional,
+# conference championships, Super Bowl), free agency, the draft, the preseason.
+season:
+  regular_weeks: 18                  # weeks 1-18 (17 games and a bye); the playoff rounds are weeks 19-22
+  playoff_teams: 7                   # per conference: the four division winners (seeds 1-4), then the wild cards
+  bye_teams: [2, 2, 4, 4, 4, 4, 4, 4, 2, 2]   # how many teams have their bye in each week from first_bye_week on
+  first_bye_week: 5                  # (the byes are in weeks 5-14)
+  spare_bye_week: 9                  # the bye of teams beyond those of bye_teams (a league of another size)
+  common_games_min: 4                # wild-card tiebreaker: the record against common opponents counts from this many games
+  trade_deadline: 9                  # trades end after this week (they open again with free agency)
+  free_agency_weeks: 3               # free agency's weeks (the teams sign players), then the draft
+  preseason_weeks: 3                 # after the draft: the preseason games (they count for nothing), then the cuts to the roster limit
+
+# Roster sizes.
+roster:
+  limit: 53                          # players on a roster during the season (injured reserve does not count)
+  offseason_limit: 90                # after the Super Bowl until the final cuts after the preseason (the 90-man camp roster)
+
+# Injured reserve: a player on it does not count against the roster limit.
+injured_reserve:
+  min_games: 4                       # he misses at least this many games (and goes on it only when out that long)
+  returns: 8                         # players a team can bring back from it per season (the others stay there)
+
+# The salary cap. Money is in thousands of dollars (301200 = $301.2M), in base_season's money: the cap,
+# the minimum salaries and the rookie scale grow with the cap every season.
+salary_cap:
+  base_season: 2026                  # the season the money figures are for
+  cap: 301200                        # the cap of the base season ($301.2M)
+  growth: 1.065                      # the cap and every money figure grow this much a season
+  minimum_salary: [885, 1005, 1075, 1145, 1215, 1215, 1215, 1300]   # by credited seasons: a rookie, one season ... seven and more
+  contract_years_max: 5              # a contract runs one to this many years
+  bonus_proration_years: 5           # a signing bonus counts against the cap spread over the contract's years, at most this many
+  offseason_top_contracts: 51        # off-season (until the final cuts): only this many of a team's highest cap hits count (the "top 51" rule)
+
+# Rookie contracts: the wage scale by overall pick (straight lines between the points, the last
+# point's for picks after it), first-rounders fully guaranteed with a fifth-year option.
+rookie_contracts:
+  scale_total: [[1, 57270], [2, 54675], [5, 47831], [10, 30958], [16, 22341], [32, 16784], [33, 10800], [64, 6900],
+                [65, 6400], [100, 5900], [101, 5100], [140, 4800], [180, 4500], [224, 4180], [260, 4150]]   # the contract's total
+  scale_bonus: [[1, 38111], [2, 36223], [5, 31246], [10, 18975], [16, 12708], [32, 8686], [33, 4700], [64, 1600],
+                [65, 1500], [100, 1000], [101, 900], [140, 500], [180, 300], [224, 110], [260, 90]]          # its signing bonus
+  guaranteed_seasons: [[32, 4], [48, 2], [64, 1]]   # up to this pick: this many seasons of base salary guaranteed (later: none)
+  years: 4                           # a drafted rookie's contract
+  option_picks: 32                   # the picks whose contracts have a fifth-year option (the first round)
+  undrafted_years: 3                 # an undrafted rookie's contract, at the minimum salary
+
+# Draft picks.
+draft:
+  rounds: 7                          # every team has one pick per round (in the draft order)
+  tradeable_years: 3                 # the picks of this many coming drafts can be traded
+
+# Jersey numbers by position group (NFL rules): a player who joins a team gets the first free number of
+# the first range of his group, then of the next range (none free: any free number 0-99).
+jersey_numbers:
+  QB: [[1, 19]]
+  RB: [[20, 39], [0, 9]]
+  FB: [[40, 49], [30, 39]]
+  WR: [[10, 19], [80, 89], [0, 9]]
+  TE: [[80, 89], [40, 49]]
+  OL: [[60, 79], [50, 59]]
+  DE: [[90, 99], [50, 59], [40, 49]]
+  DT: [[90, 99], [60, 79]]
+  LB: [[40, 59], [0, 9]]
+  CB: [[20, 39], [0, 9]]
+  S: [[20, 49], [0, 9]]
+  K: [[1, 19], [90, 99]]
+  P: [[1, 19], [90, 99]]
+  LS: [[40, 69]]
 # San Francisco 49ers - built by tools/real_rosters.py from Ourlads depth chart 10/27/2026.
 # Names, numbers and depth order are real; the ratings are estimates on the ESPN NFL 2K5 scale (0-99)
 # plus discipline (0-99, high = rarely flagged) and catch_in_traffic ... juke (tools/derived_ratings.py).
