@@ -1320,6 +1320,25 @@ penalties:
   touchdown_value: 100
   first_down_value: 6
   short_value: 3
+# How the game is shown on small screens (phones). Not part of the game's fingerprint (see
+# config/simulation.yaml): it changes nothing in a game, and two online players may differ here.
+
+phone:
+  # A window that is taller than wide (by more than portrait_aspect) and narrower than portrait_max_width
+  # (CSS pixels: a phone held upright) gets a portrait canvas portrait_width design pixels wide, as tall as
+  # the screen makes it; every screen lays itself out in a column for it.
+  portrait_aspect: 1.15
+  portrait_max_width: 700
+  portrait_width: 560
+  narrow_width: 800                  # a canvas narrower than this is laid out in a column
+
+field:
+  # The field on a phone held upright: zoomed in to about portrait_yards of its length (less when the screen
+  # has no room for the field's width), following the ball (the line of scrimmage between the plays).
+  portrait_yards: 34
+  lead_yards: 4                      # the view looks this far ahead of the ball, the way the offense goes
+  follow_rate: 5                     # how fast the view catches up with the ball (per second; higher: snappier)
+  edge_yards: 1.5                    # at the end of the field: this much beyond the end line still shows
 # Fantasy football ("Other game modes"): a fantasy league on top of one simulated NFL season. The
 # rules a new league starts with, the scoring, and how the CPU managers draft, set their lineups and
 # bid for free agents. Every value is read by the game: a missing one or an unknown name is an error.
