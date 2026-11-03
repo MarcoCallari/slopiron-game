@@ -2583,6 +2583,91 @@ fallback:
   KR: [RB, WR, CB]
   PR: [WR, RB, CB]
   ST: [LB, S, CB, TE, RB, FB, WR, DE]
+# The roguelike (title screen > Other game modes): a run of games against ever better NFL teams and
+# an all-star team at the end, with a team that starts out weak and grows from the player packs won
+# with goals. One loss ends the run. Not part of the game's fingerprint (see config/simulation.yaml).
+#
+# A player's level is his depth-chart skill at his position (config/ratings.yaml depth_skill); a
+# team's overall is the average level of its starters (overall_starters).
+
+run:
+  opponents: 10                      # real NFL teams in a run, picked at random and played weakest first ...
+  first_band: [70, 75]               # ... the first one's overall brought into this range (if it is not in it) ...
+  last_band: [90, 95]                # ... the last one's into this one; the ones between step up evenly
+  all_star_band: [95, 99]            # the final game: the league's best at every position, each raised into this range (if lower)
+  quarter_minutes: [3, 5, 8, 10, 12, 15]   # the quarter lengths a run can be played with ...
+  default_quarter_minutes: 5               # ... and the one picked at first
+  starting_level: 65                 # your team at the start: every player about this good ...
+  starting_noise: 2.5                # ... give or take this much (standard deviation)
+  team_names: [Rogues, RGE]          # your team's name and abbreviation
+  team_colors: [120, 124, 132, 196, 200, 208]       # its colours (r g b, twice: primary, secondary)
+  all_star_names: [All-Stars, ALL]
+  all_star_colors: [24, 34, 74, 212, 175, 55]
+  overall_starters: {QB: 1, RB: 1, WR: 3, TE: 1, OL: 5, DE: 2, DT: 2, LB: 3, CB: 2, S: 2}
+  level_passes: 8                    # bringing a player or team to a level: at most this many steps ...
+  level_precision: 0.3               # ... until it is this close
+
+players:
+  # A made-up player (the packs, your starting team): one of the league's players at his position about
+  # as good is his model (his other ratings fit, so every player has his own strengths), at random among
+  # the template_pool closest, his ratings with some noise, then his position's ratings up or down to the level.
+  template_pool: 12
+  rating_noise: 4
+  ages: [22, 33]
+  # how often each position comes out of a pack
+  positions: {QB: 0.8, RB: 1.3, FB: 0.2, WR: 2.2, TE: 1, OL: 3, DE: 1.6, DT: 1.4, LB: 1.8, CB: 1.8, S: 1.4, K: 0.35, P: 0.3}
+
+tiers:
+  # bronze, silver, gold, epic, legendary: a player's level [lowest, highest]
+  bands: [[70, 75], [75, 82], [82, 88], [88, 94], [94, 99]]
+
+packs:
+  # what comes out of a pack: its own tier, one higher, two higher (never above legendary)
+  odds: [0.8, 0.17, 0.03]
+  starter: [5, 2]                    # the first pack (bronze): players offered, players taken
+  reward: [3, 1]                     # a goal's pack
+  potions: 3                         # a quarter goal's pack: potions offered (one is taken)
+
+potions:
+  # A potion raises three ratings (at random from `ratings`) of the player it is used on, for the next game only.
+  boost: [3, 5, 8, 12, 16]           # by this much (bronze .. legendary)
+  ratings: [speed, acceleration, agility, strength, catch, run_route, catch_in_traffic, break_tackle, juke, vision,
+            pass_accuracy, deep_accuracy, pass_arm_strength, pass_read_coverage, pass_blocking, run_blocking,
+            pass_rush, run_coverage, coverage, tackle, kick_power, kick_accuracy]
+
+goals:
+  # Before every game but the last, offered of the list (different ones) and picked (each completed one in
+  # a won game gives a pack of its tier); in a game at the start of every quarter, quarter_offered of the
+  # list and one picked (completed by the end of the quarter: a potion pack of its tier).
+  offered: 6
+  picked: 3
+  quarter_offered: 2
+  tier_odds: [0.45, 0.3, 0.18, 0.07]       # a goal's difficulty: bronze, silver, gold, epic (no legendary goals)
+  reference_minutes: 15                     # the targets are for quarters this long (shorter ones: smaller targets, at least 1)
+  # a goal: its text ({n} the target; {s} and {es} the plural's ending), what counts (scope: team - your players' numbers added up; player - one of your players;
+  # points - your points; allowed - the opponent's points, at most; opponent - the opponent's players'
+  # numbers added up, at most), the statistics (box score columns), the targets (bronze .. epic) for a
+  # game and for a quarter, and how often it is offered (weight)
+  list:
+    - {text: "Score {n} point{s}", scope: points, stats: [], game: [17, 24, 31, 38], quarter: [3, 7, 10, 14], weight: 1.2}
+    - {text: "Score {n} touchdown{s}", scope: team, stats: [rush_td, rec_td, int_td, fum_td, kr_td, pr_td], game: [2, 3, 4, 5], quarter: [1, 1, 2, 2], weight: 1}
+    - {text: "Rush for {n} yard{s}", scope: team, stats: [rush_yds], game: [100, 140, 180, 230], quarter: [30, 45, 60, 80], weight: 1}
+    - {text: "Throw for {n} yard{s}", scope: team, stats: [rec_yds], game: [200, 260, 320, 380], quarter: [60, 85, 110, 140], weight: 1}
+    - {text: "Gain {n} yard{s}", scope: team, stats: [rush_yds, rec_yds], game: [300, 380, 450, 520], quarter: [90, 120, 150, 190], weight: 1}
+    - {text: "{n} first down{s}", scope: team, stats: [rush_first, pass_first], game: [15, 20, 24, 28], quarter: [4, 6, 7, 9], weight: 0.8}
+    - {text: "Complete {n} pass{es}", scope: team, stats: [pass_cmp], game: [15, 20, 25, 30], quarter: [5, 7, 9, 11], weight: 0.8}
+    - {text: "{n} touchdown pass{es}", scope: team, stats: [pass_td], game: [1, 2, 3, 4], quarter: [1, 1, 2, 2], weight: 0.9}
+    - {text: "{n} rushing touchdown{s}", scope: team, stats: [rush_td], game: [1, 2, 3, 4], quarter: [1, 1, 2, 2], weight: 0.9}
+    - {text: "A receiver with {n} catch{es}", scope: player, stats: [rec], game: [5, 7, 9, 11], quarter: [2, 3, 4, 5], weight: 1}
+    - {text: "A receiver with {n} yard{s}", scope: player, stats: [rec_yds], game: [70, 100, 130, 170], quarter: [25, 40, 55, 75], weight: 1}
+    - {text: "A runner with {n} yard{s}", scope: player, stats: [rush_yds], game: [60, 90, 120, 160], quarter: [20, 35, 50, 70], weight: 1}
+    - {text: "A player with {n} touchdown{s}", scope: player, stats: [rush_td, rec_td], game: [1, 2, 3, 4], quarter: [1, 1, 2, 2], weight: 0.7}
+    - {text: "Sack the quarterback {n} time{s}", scope: team, stats: [sacks], game: [2, 3, 4, 6], quarter: [1, 1, 2, 3], weight: 0.6}
+    - {text: "Intercept {n} pass{es}", scope: team, stats: [ints], game: [1, 2, 3, 4], quarter: [1, 1, 2, 2], weight: 0.6}
+    - {text: "A defender with {n} tackle{s}", scope: player, stats: [tackles], game: [7, 9, 11, 13], quarter: [3, 4, 5, 6], weight: 0.5}
+    - {text: "Allow at most {n} point{s}", scope: allowed, stats: [], game: [24, 17, 10, 3], quarter: [10, 7, 3, 0], weight: 0.6}
+    - {text: "Hold them to {n} rushing yards", scope: opponent, stats: [rush_yds], game: [120, 90, 60, 40], quarter: [40, 30, 20, 10], weight: 0.5}
+    - {text: "Hold them to {n} passing yards", scope: opponent, stats: [rec_yds], game: [260, 210, 160, 110], quarter: [80, 60, 45, 30], weight: 0.5}
 # The on-field simulation: which engine simulates the plays and how it is tuned.
 #
 # engine: the implementation behind sim/FieldSimulation.h (see docs/SIMULATION.md). This build has
